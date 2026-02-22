@@ -203,4 +203,26 @@ ls ~/.cache/opencode/node_modules/ 2>/dev/null || echo "缓存已清理"
 - [SESSION_SUMMARY.md](./handover/SESSION_SUMMARY.md)
 - [HANDOVER.md](./handover/HANDOVER.md)
 - [packaging-standards.md](./packaging-standards.md)
-- [build-rules.md](./build-rules.md)
+
+---
+
+## 6. 更新日志
+
+### 2026-02-23: 使用 musl 静态二进制
+
+**重大改进**：放弃 glibc-runner 和 NDK runtime 方案，改用 musl 静态编译版本。
+
+| 项目 | 新版本 | 依赖 |
+|------|--------|------|
+| bun-termux | 1.3.9-3 | bash, ncurses (无 glibc-runner) |
+| opencode-termux | 1.2.10-1 | bash, ncurses (无 bun, 无 NDK) |
+
+**变更**：
+- PKGBUILD 直接从 GitHub Releases 下载 musl 静态二进制
+- GitHub Actions workflow 使用 makepkg 构建
+- DEB 打包脚本已创建
+- 移除 glibc-runner 和 bun 依赖
+ 移除 glibc-runner 和 bun 依赖
+
+ [build-rules.md](./build-rules.md)
+
