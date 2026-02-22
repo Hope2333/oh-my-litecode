@@ -119,6 +119,62 @@ jobs:
 - Cloudflare Tunnel
 - 修改源码支持 TLS
 
+### 3.3 opencode-anthropic-auth 模块缺失错误
+
+**错误信息**：
+```
+error: Cannot find module '/data/data/com.termux/files/home/.cache/opencode/node_modules/opencode-anthropic-auth' from '/$bunfs/root/src/index.js'
+```
+
+**原因**：
+- OpenCode 默认插件列表包含 `opencode-anthropic-auth@0.0.13`
+- Termux 上 `bun add` 安装插件时遇到 EACCES 权限错误
+- 安装中断导致目录存在但内容不完整（缺少 `package.json`）
+- 后续启动时 worker import 失败
+
+**解决方案**：
+
+**方法 1：禁用默认插件（推荐）**
+```bash
+export OPENCODE_DISABLE_DEFAULT_PLUGINS=1
+opencode web --port 7600
+```
+
+**方法 2：清理损坏的缓存**
+```bash
+rm -rf ~/.cache/opencode/node_modules/opencode-anthropic-auth
+# 或者清理整个 node_modules
+rm -rf ~/.cache/opencode/node_modules
+```
+
+**方法 3：在 launcher 中自动修复（已集成到 OCT）**
+
+`launcher.sh` 已包含自动修复逻辑：
+```bash
+cleanup_broken_cached_modules() {
+	local cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/opencode"
+	local mod_dir="$cache_root/node_modules/opencode-anthropic-auth"
+	if [ -d "$mod_dir" ] && [ ! -f "$mod_dir/package.json" ]; then
+		rm -rf "$cache_root/node_modules" 2>/dev/null || true
+	fi
+}
+```
+
+并默认设置：
+```bash
+: "${OPENCODE_DISABLE_DEFAULT_PLUGINS:=1}"
+export OPENCODE_DISABLE_DEFAULT_PLUGINS
+```
+
+**验证修复**：
+```bash
+# 检查环境变量
+echo $OPENCODE_DISABLE_DEFAULT_PLUGINS
+
+# 检查缓存是否已清理
+ls ~/.cache/opencode/node_modules/ 2>/dev/null || echo "缓存已清理"
+```
+
 ---
 
 ## 4. 下一步行动
