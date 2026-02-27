@@ -25,15 +25,35 @@ OML serves as an orchestrator for multiple sub-projects, providing:
 # Show available commands
 ./oml --help
 
-# Build packages for Termux
-./oml build --ver 1.1.65 --pkgmgr pacman
+# Unified builds (Termux first, GNU/Linux second)
+./oml build --project opencode --target termux-dpkg --ver 1.2.10
+./oml build --project opencode --target termux-pacman --ver 1.2.10
+./oml build --project opencode --target gnu-debian --ver 1.2.10
+./oml build --project opencode --target gnu-arch --ver 1.2.10
+
+# bun-termux is currently Termux-only
+./oml build --project bun --target termux-pacman --ver 1.3.9
 
 # Apply hotfixes
 ./oml hotfix apply <fix-name>
 
 # View documentation
 ./oml doc <project> <topic>
+
+# Manage opencode-termux integration
+./oml opencode diagnose
+./oml opencode plugin install
+./oml opencode skill list
+./oml opencode matrix --vers "1.2.9 1.2.10" --odir ~/oct-out/deb
 ```
+
+## Environment Policy
+
+- OML is **not Termux-only**.
+- Execution priority:
+  1. **Termux** as first-class citizen (primary validation path)
+  2. **GNU/Linux** as secondary supported environment
+- No other OS targets are considered unless explicitly required.
 
 ## License
 

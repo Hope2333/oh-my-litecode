@@ -15,6 +15,8 @@ OML_TOOLS="$OML_ROOT/tools"
 OML_HOTFIX="$OML_ROOT/hotfix"
 OML_DOCS="$OML_ROOT/docs"
 OML_SOLVE_ANDROID="$OML_ROOT/solve-android"
+OML_OCT_DIR="${OML_OCT_DIR:-$OML_ROOT/../opencode-termux}"
+OML_BUN_DIR="${OML_BUN_DIR:-$OML_ROOT/../bun-termux}"
 
 # Colors
 RED='\033[0;31m'
@@ -23,12 +25,8 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Load available tools
-_load_tools() {
-    for tool in "$OML_TOOLS"/*.sh; do
-        [[ -f "$tool" ]] && source "$tool"
-    done
-}
+# Note: do not source scripts from ./tools directly.
+# Many tool scripts are executable entrypoints with side effects at source time.
 
 # Show help
 _show_help() {
@@ -39,11 +37,17 @@ Unified Toolchain Manager for Termux/Android AI Development
 Usage: oml <command> [options]
 
 Commands:
-  build       Build packages for Termux
-    --ver <version>    Target version (e.g., 1.1.65)
-    --pkgmgr <type>    Package manager: pacman or dpkg
+  build       Unified build orchestrator (Termux first, GNU/Linux second)
     --project <name>   Project: opencode or bun
-    --debug            Build debug package (includes sources)
+    --target <name>    termux-dpkg | termux-pacman | gnu-debian | gnu-arch
+    --ver <version>    Target version (default: opencode=latest, bun=1.3.9)
+    --odir <dir>       Output directory (optional)
+    --mix              Flatten output layout when supported
+    --debug            Build debug mode when supported
+    --dry-run          Print command only
+
+    Legacy compatibility:
+      --pkgmgr <type>  pacman | dpkg (mapped to termux targets)
 
   hotfix      Manage hotfixes
     list               List available hotfixes
@@ -54,13 +58,28 @@ Commands:
     <project>          Project name (opencode, bun, oml)
     <topic>            Topic (optional)
 
+  opencode    Manage opencode-termux integration (Termux first, GNU/Linux second)
+    help                      Show opencode subcommand help
+    path                      Show resolved OCT paths
+    diagnose                  Run read-only diagnostics (selfcheck + key file checks)
+    plugin <action> [args]    Forward to plugin-manager.sh (install/update/rollback/...)
+    skill list                List system skill manifests (source + installed)
+    skill hook <event>        Trigger run-system-skills.sh with event (post_install/post_upgrade)
+    matrix --vers "..."       Run machine1->machine2 matrix via OCT Makefile/tools
+    build [--ver V] [--pkg P] Build via OCT Makefile (default deb)
+
   version     Show version info
   help        Show this help
 
 Examples:
-  oml build --ver 1.1.65 --pkgmgr pacman --project opencode
+  oml build --project opencode --target termux-dpkg --ver 1.2.10
+  oml build --project opencode --target gnu-arch --ver 1.2.10
+  oml build --project bun --target termux-pacman --ver 1.3.9
   oml hotfix list
   oml doc opencode installation
+  oml opencode diagnose
+  oml opencode plugin install
+  oml opencode skill hook post_upgrade
 
 Projects:
   opencode    OpenCode for Termux with TTY/lock cleanup launcher
@@ -72,16 +91,24 @@ EOF
 # Build command
 _cmd_build() {
     local ver=""
-    local pkgmgr="pacman"
+    local pkgmgr=""
     local project=""
+    local target=""
     local debug=false
+    local odir=""
+    local mix=false
+    local dry_run=false
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             --ver) ver="$2"; shift 2 ;;
             --pkgmgr) pkgmgr="$2"; shift 2 ;;
             --project) project="$2"; shift 2 ;;
+            --target) target="$2"; shift 2 ;;
+            --odir) odir="$2"; shift 2 ;;
+            --mix) mix=true; shift ;;
             --debug) debug=true; shift ;;
+            --dry-run) dry_run=true; shift ;;
             *) shift ;;
         esac
     done
@@ -91,28 +118,88 @@ _cmd_build() {
         return 1
     fi
 
-    if [[ -z "$ver" ]]; then
-        echo -e "${RED}Error: --ver is required${NC}"
-        return 1
+    if [[ -z "$target" ]]; then
+        case "$pkgmgr" in
+            pacman) target="termux-pacman" ;;
+            dpkg|deb) target="termux-dpkg" ;;
+            "") target="termux-dpkg" ;;
+            *)
+                echo -e "${RED}Error: unsupported --pkgmgr value: $pkgmgr${NC}"
+                return 1
+                ;;
+        esac
     fi
 
-    local project_dir="$OML_SOLVE_ANDROID/$project"
-    local packaging_dir="$project_dir/packaging/$pkgmgr"
+    local pkg=""
+    case "$target" in
+        termux-dpkg|gnu-debian) pkg="deb" ;;
+        termux-pacman|gnu-arch) pkg="pacman" ;;
+        *)
+            echo -e "${RED}Error: unsupported --target: $target${NC}"
+            return 1
+            ;;
+    esac
 
-    if [[ ! -d "$packaging_dir" ]]; then
-        echo -e "${RED}Error: Package manager '$pkgmgr' not supported for $project${NC}"
-        return 1
+    if [[ "$project" == "opencode" ]]; then
+        _require_oct_repo || return 1
+        [[ -n "$ver" ]] || ver="latest"
+
+        local cmd=(make -C "$OML_OCT_DIR" all "VER=$ver" "PKG=$pkg")
+        [[ -n "$odir" ]] && cmd+=("ODIR=$odir")
+        [[ "$mix" == true ]] && cmd+=("MIX=1")
+
+        echo -e "${BLUE}[oml] build opencode target=${target} ver=${ver}${NC}"
+        if [[ "$dry_run" == true ]]; then
+            printf '%q ' "${cmd[@]}"
+            printf '\n'
+            return 0
+        fi
+        "${cmd[@]}"
+        return 0
     fi
 
-    echo -e "${BLUE}Building $project v$ver for $pkgmgr...${NC}"
+    if [[ "$project" == "bun" ]]; then
+        if [[ "$target" == gnu-* ]]; then
+            echo -e "${RED}Error: bun-termux is Termux-only in current roadmap; GNU targets are disabled${NC}"
+            return 1
+        fi
+        [[ -n "$ver" ]] || ver="1.3.9"
 
-    # Invoke Makefile
-    make -C "$project_dir" build \
-        VER="$ver" \
-        PKGMGR="$pkgmgr" \
-        DEBUG="$debug"
+        if [[ ! -d "$OML_BUN_DIR" ]]; then
+            echo -e "${RED}Error: bun-termux repo not found: $OML_BUN_DIR${NC}"
+            return 1
+        fi
 
-    echo -e "${GREEN}Build complete.${NC}"
+        if [[ "$pkg" == "pacman" ]]; then
+            local cmd=(make -C "$OML_BUN_DIR" package "PKGVER=$ver" "PKGMGR=pacman")
+            echo -e "${BLUE}[oml] build bun target=${target} ver=${ver}${NC}"
+            if [[ "$dry_run" == true ]]; then
+                printf '%q ' "${cmd[@]}"
+                printf '\n'
+                return 0
+            fi
+            "${cmd[@]}"
+            return 0
+        fi
+
+        local deb_cmd=(bash scripts/package/package_deb.sh)
+        echo -e "${BLUE}[oml] build bun target=${target} ver=${ver}${NC}"
+        if [[ "$dry_run" == true ]]; then
+            printf 'cd %q && VERSION=%q ' "$OML_BUN_DIR" "$ver"
+            printf '%q ' "${deb_cmd[@]}"
+            printf '\n'
+            return 0
+        fi
+        (cd "$OML_BUN_DIR" && VERSION="$ver" "${deb_cmd[@]}")
+        if [[ -n "$odir" ]]; then
+            mkdir -p "$odir"
+            cp -f "$OML_BUN_DIR"/packaging/dpkg/bun_"$ver"_*.deb "$odir"/ 2>/dev/null || true
+        fi
+        return 0
+    fi
+
+    echo -e "${RED}Error: unsupported --project: $project${NC}"
+    return 1
 }
 
 # Hotfix command
@@ -193,10 +280,183 @@ _cmd_version() {
     done
 }
 
+_oml_platform_label() {
+    if [[ -d "/data/data/com.termux/files/usr" ]]; then
+        echo "termux"
+    else
+        echo "gnu-linux"
+    fi
+}
+
+_require_oct_repo() {
+    if [[ ! -d "$OML_OCT_DIR" ]]; then
+        echo -e "${RED}Error: opencode-termux repo not found: $OML_OCT_DIR${NC}"
+        echo "Set OML_OCT_DIR to your opencode-termux path."
+        return 1
+    fi
+    return 0
+}
+
+_cmd_opencode_help() {
+    cat <<EOF
+Usage: oml opencode <action> [subargs]
+
+Actions:
+  path
+    Show resolved opencode-termux paths and platform label.
+
+  diagnose
+    Run read-only diagnostics via OCT selfcheck and key path inspection.
+
+  plugin <action> [args]
+    Forward to: tools/plugin-manager.sh
+    Examples:
+      oml opencode plugin install
+      oml opencode plugin update
+      oml opencode plugin rollback oh-my-opencode
+
+  skill list
+    List source/installed system skill manifests.
+
+  skill hook <event>
+    Trigger system skill hook runner with event.
+    Example:
+      oml opencode skill hook post_upgrade
+
+  matrix --vers "<versions>" [--odir DIR] [--host H] [--port P] [--user U]
+    Run OCT upgrade matrix simulation.
+
+  build [--ver V] [--pkg deb|pacman|both] [--odir DIR]
+    Build through OCT Makefile.
+
+Notes:
+  - Priority policy: Termux first, GNU/Linux second.
+  - This command never assumes other OS environments.
+EOF
+}
+
+_cmd_opencode() {
+    _require_oct_repo || return 1
+
+    local action="${1:-help}"
+    shift || true
+
+    local platform
+    platform="$(_oml_platform_label)"
+
+    case "$action" in
+        help|--help|-h)
+            _cmd_opencode_help
+            ;;
+        path)
+            echo "platform=$platform"
+            echo "oct_repo=$OML_OCT_DIR"
+            echo "oct_makefile=$OML_OCT_DIR/Makefile"
+            echo "oct_tools=$OML_OCT_DIR/tools"
+            ;;
+        diagnose)
+            echo -e "${BLUE}[oml] opencode diagnose on ${platform}${NC}"
+            if [[ -x "$OML_OCT_DIR/tools/plugin-selfcheck.sh" ]]; then
+                (cd "$OML_OCT_DIR" && bash tools/plugin-selfcheck.sh)
+            else
+                echo -e "${YELLOW}warn: missing tool: $OML_OCT_DIR/tools/plugin-selfcheck.sh${NC}"
+            fi
+            local pfx="${PREFIX:-/data/data/com.termux/files/usr}"
+            ls -l "$pfx/lib/opencode/tools/run-system-skills.sh" "$pfx/lib/opencode/system-skills" 2>/dev/null || true
+            ;;
+        plugin|manage)
+            local sub="${1:-}"
+            shift || true
+            if [[ -z "$sub" ]]; then
+                echo -e "${RED}Error: plugin action is required${NC}"
+                return 1
+            fi
+            if [[ ! -x "$OML_OCT_DIR/tools/plugin-manager.sh" ]]; then
+                echo -e "${RED}Error: missing executable: $OML_OCT_DIR/tools/plugin-manager.sh${NC}"
+                return 1
+            fi
+            (cd "$OML_OCT_DIR" && bash tools/plugin-manager.sh "$sub" "$@")
+            ;;
+        skill|skills)
+            local sub="${1:-list}"
+            shift || true
+            case "$sub" in
+                list)
+                    echo "[source manifests]"
+                    ls -1 "$OML_OCT_DIR/packaging/manifests/system-skills"/*.json 2>/dev/null || echo "(none)"
+                    echo "[installed manifests]"
+                    ls -1 "${PREFIX:-/data/data/com.termux/files/usr}/lib/opencode/system-skills"/*.json 2>/dev/null || echo "(none)"
+                    ;;
+                hook)
+                    local event="${1:-post_upgrade}"
+                    local runner="$OML_OCT_DIR/scripts/hooks/run-system-skills.sh"
+                    if [[ ! -x "$runner" ]]; then
+                        echo -e "${RED}Error: missing executable: $runner${NC}"
+                        return 1
+                    fi
+                    (cd "$OML_OCT_DIR" && bash "$runner" "$event")
+                    ;;
+                *)
+                    echo -e "${RED}Unknown skill action: $sub${NC}"
+                    return 1
+                    ;;
+            esac
+            ;;
+        matrix)
+            local vers=""
+            local odir=""
+            local host=""
+            local port=""
+            local user=""
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --vers) vers="$2"; shift 2 ;;
+                    --odir) odir="$2"; shift 2 ;;
+                    --host) host="$2"; shift 2 ;;
+                    --port) port="$2"; shift 2 ;;
+                    --user) user="$2"; shift 2 ;;
+                    *) echo -e "${YELLOW}warn: unknown arg: $1${NC}"; shift ;;
+                esac
+            done
+            if [[ -z "$vers" ]]; then
+                echo -e "${RED}Error: --vers is required${NC}"
+                return 1
+            fi
+            local cmd=(make -C "$OML_OCT_DIR" matrix "VERS=$vers")
+            [[ -n "$odir" ]] && cmd+=("ODIR=$odir")
+            [[ -n "$host" ]] && cmd+=("TARGET_HOST=$host")
+            [[ -n "$port" ]] && cmd+=("TARGET_PORT=$port")
+            [[ -n "$user" ]] && cmd+=("TARGET_USER=$user")
+            "${cmd[@]}"
+            ;;
+        build)
+            local ver="latest"
+            local pkg="deb"
+            local odir=""
+            while [[ $# -gt 0 ]]; do
+                case "$1" in
+                    --ver) ver="$2"; shift 2 ;;
+                    --pkg) pkg="$2"; shift 2 ;;
+                    --odir) odir="$2"; shift 2 ;;
+                    *) echo -e "${YELLOW}warn: unknown arg: $1${NC}"; shift ;;
+                esac
+            done
+            if [[ -n "$odir" ]]; then
+                make -C "$OML_OCT_DIR" all "VER=$ver" "PKG=$pkg" "ODIR=$odir"
+            else
+                make -C "$OML_OCT_DIR" all "VER=$ver" "PKG=$pkg"
+            fi
+            ;;
+        *)
+            echo -e "${RED}Unknown opencode action: $action${NC}"
+            _cmd_opencode_help
+            return 1
+            ;;
+    esac
+}
+
 # Main entry point
 main() {
-    _load_tools
-
     local cmd="${1:-help}"
     shift || true
 
@@ -204,6 +464,7 @@ main() {
         build)   _cmd_build "$@" ;;
         hotfix)  _cmd_hotfix "$@" ;;
         doc)     _cmd_doc "$@" ;;
+        opencode) _cmd_opencode "$@" ;;
         version|--version|-v) _cmd_version ;;
         help|--help|-h) _show_help ;;
         *)
