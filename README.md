@@ -45,7 +45,13 @@ OML serves as an orchestrator for multiple sub-projects, providing:
 ./oml opencode plugin install
 ./oml opencode skill list
 ./oml opencode matrix --vers "1.2.9 1.2.10" --odir ~/oct-out/deb
+./oml opencode plugin-build --plugin qwen-oauth-gd --odir ~/oct-plugin-out
 ```
+
+Plugin safety default (Termux):
+
+- prefer `file://` plugin entries in `~/.config/opencode/opencode.json`
+- avoid named plugin entries when plugin has native/postinstall-heavy dependencies
 
 ## Environment Policy
 

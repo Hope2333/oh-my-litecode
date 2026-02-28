@@ -20,6 +20,7 @@ Supported actions:
 - `skill hook <event>`
 - `matrix --vers "..." [--odir ... --host ... --port ... --user ...]`
 - `build [--ver ... --pkg ... --odir ...]`
+- `plugin-build [--plugin ... --mode ... --odir ... --mix]`
 
 ## Mapping to OCT tools
 
@@ -28,6 +29,22 @@ Supported actions:
 - `skill hook ...` → `scripts/hooks/run-system-skills.sh`
 - `matrix ...` → `make matrix ...` (or `tools/upgrade-matrix.sh` through Make)
 - `build ...` → `make all ...`
+- `plugin-build ...` → `opencode-plugins-termux` `make all ...`
+
+### Termux plugin default recommendation
+
+For Termux environments, prefer **file-plugin mode** in `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "file:///absolute/path/to/local-plugin"
+  ]
+}
+```
+
+Reason: this avoids unstable npm/bun postinstall chains and native dependency drift in Android/Termux.
 
 ## Environment policy
 
@@ -63,6 +80,12 @@ By default, OML resolves OCT at:
 
 ```bash
 $OML_ROOT/../opencode-termux
+```
+
+Plugin builder repo path (default):
+
+```bash
+$OML_ROOT/../opencode-plugins-termux
 ```
 
 Override with:

@@ -17,6 +17,7 @@ OML_DOCS="$OML_ROOT/docs"
 OML_SOLVE_ANDROID="$OML_ROOT/solve-android"
 OML_OCT_DIR="${OML_OCT_DIR:-$OML_ROOT/../opencode-termux}"
 OML_BUN_DIR="${OML_BUN_DIR:-$OML_ROOT/../bun-termux}"
+OML_OCT_PLUGINS_DIR="${OML_OCT_PLUGINS_DIR:-$OML_ROOT/../opencode-plugins-termux}"
 
 # Colors
 RED='\033[0;31m'
@@ -67,6 +68,7 @@ Commands:
     skill hook <event>        Trigger run-system-skills.sh with event (post_install/post_upgrade)
     matrix --vers "..."       Run machine1->machine2 matrix via OCT Makefile/tools
     build [--ver V] [--pkg P] Build via OCT Makefile (default deb)
+    plugin-build ...           Build external plugin packages via opencode-plugins-termux
 
   version     Show version info
   help        Show this help
@@ -80,6 +82,7 @@ Examples:
   oml opencode diagnose
   oml opencode plugin install
   oml opencode skill hook post_upgrade
+  oml opencode plugin-build --plugin omo --odir ~/oct-plugin-out
 
 Projects:
   opencode    OpenCode for Termux with TTY/lock cleanup launcher
@@ -329,6 +332,11 @@ Actions:
   build [--ver V] [--pkg deb|pacman|both] [--odir DIR]
     Build through OCT Makefile.
 
+  plugin-build [--plugin KEY] [--mode source] [--odir DIR] [--mix]
+    Build external plugin packages via opencode-plugins-termux.
+    Example:
+      oml opencode plugin-build --plugin qwen-oauth-gd --odir ~/oct-plugin-out
+
 Notes:
   - Priority policy: Termux first, GNU/Linux second.
   - This command never assumes other OS environments.
@@ -429,7 +437,7 @@ _cmd_opencode() {
             [[ -n "$user" ]] && cmd+=("TARGET_USER=$user")
             "${cmd[@]}"
             ;;
-        build)
+		build)
             local ver="latest"
             local pkg="deb"
             local odir=""
@@ -441,12 +449,36 @@ _cmd_opencode() {
                     *) echo -e "${YELLOW}warn: unknown arg: $1${NC}"; shift ;;
                 esac
             done
-            if [[ -n "$odir" ]]; then
-                make -C "$OML_OCT_DIR" all "VER=$ver" "PKG=$pkg" "ODIR=$odir"
-            else
-                make -C "$OML_OCT_DIR" all "VER=$ver" "PKG=$pkg"
-            fi
-            ;;
+			if [[ -n "$odir" ]]; then
+				make -C "$OML_OCT_DIR" all "VER=$ver" "PKG=$pkg" "ODIR=$odir"
+			else
+				make -C "$OML_OCT_DIR" all "VER=$ver" "PKG=$pkg"
+			fi
+			;;
+		plugin-build)
+			local plugin="omo"
+			local mode="source"
+			local odir=""
+			local mix="0"
+			while [[ $# -gt 0 ]]; do
+				case "$1" in
+					--plugin) plugin="$2"; shift 2 ;;
+					--mode) mode="$2"; shift 2 ;;
+					--odir) odir="$2"; shift 2 ;;
+					--mix) mix="1"; shift ;;
+					*) echo -e "${YELLOW}warn: unknown arg: $1${NC}"; shift ;;
+				esac
+			done
+			if [[ ! -d "$OML_OCT_PLUGINS_DIR" ]]; then
+				echo -e "${RED}Error: plugin builder repo not found: $OML_OCT_PLUGINS_DIR${NC}"
+				return 1
+			fi
+			if [[ -n "$odir" ]]; then
+				make -C "$OML_OCT_PLUGINS_DIR" all "PLUGIN=$plugin" "MODE=$mode" "ODIR=$odir" "MIX=$mix"
+			else
+				make -C "$OML_OCT_PLUGINS_DIR" all "PLUGIN=$plugin" "MODE=$mode" "MIX=$mix"
+			fi
+			;;
         *)
             echo -e "${RED}Unknown opencode action: $action${NC}"
             _cmd_opencode_help
