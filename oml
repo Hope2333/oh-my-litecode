@@ -1,4 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/sh
+if [ -z "${BASH_VERSION:-}" ]; then
+    if [ -x /data/data/com.termux/files/usr/bin/bash ]; then
+        exec /data/data/com.termux/files/usr/bin/bash "$0" "$@"
+    fi
+    if command -v bash >/dev/null 2>&1; then
+        exec "$(command -v bash)" "$0" "$@"
+    fi
+    echo "Error: bash is required" >&2
+    exit 1
+fi
 #
 # Oh-My-Litecode (OML) - Unified Toolchain Manager
 # Version: 0.1.0-alpha
@@ -63,6 +73,7 @@ Commands:
     help                      Show opencode subcommand help
     path                      Show resolved OCT paths
     diagnose                  Run read-only diagnostics (selfcheck + key file checks)
+    migrate-installed [name]  Switch HOME local-plugin entry to installed package path
     plugin <action> [args]    Forward to plugin-manager.sh (install/update/rollback/...)
     skill list                List system skill manifests (source + installed)
     skill hook <event>        Trigger run-system-skills.sh with event (post_install/post_upgrade)
@@ -80,6 +91,7 @@ Examples:
   oml hotfix list
   oml doc opencode installation
   oml opencode diagnose
+  oml opencode migrate-installed
   oml opencode plugin install
   oml opencode skill hook post_upgrade
   oml opencode plugin-build --plugin omo --odir ~/oct-plugin-out
@@ -311,11 +323,18 @@ Actions:
   diagnose
     Run read-only diagnostics via OCT selfcheck and key path inspection.
 
+  migrate-installed [name]
+    Forward to: tools/plugin-manager.sh migrate-installed
+    Examples:
+      oml opencode migrate-installed
+      oml opencode migrate-installed oh-my-opencode
+
   plugin <action> [args]
     Forward to: tools/plugin-manager.sh
     Examples:
       oml opencode plugin install
       oml opencode plugin update
+      oml opencode plugin migrate-installed
       oml opencode plugin rollback oh-my-opencode
 
   skill list
@@ -371,6 +390,14 @@ _cmd_opencode() {
             fi
             local pfx="${PREFIX:-/data/data/com.termux/files/usr}"
             ls -l "$pfx/lib/opencode/tools/run-system-skills.sh" "$pfx/lib/opencode/system-skills" 2>/dev/null || true
+            ;;
+        migrate-installed)
+            local name="${1:-oh-my-opencode}"
+            if [[ ! -x "$OML_OCT_DIR/tools/plugin-manager.sh" ]]; then
+                echo -e "${RED}Error: missing executable: $OML_OCT_DIR/tools/plugin-manager.sh${NC}"
+                return 1
+            fi
+            (cd "$OML_OCT_DIR" && bash tools/plugin-manager.sh migrate-installed "$name")
             ;;
         plugin|manage)
             local sub="${1:-}"
