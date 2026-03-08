@@ -15,6 +15,7 @@ Supported actions:
 
 - `path`
 - `diagnose`
+- `migrate-installed [name]`
 - `plugin <action> [args]`
 - `skill list`
 - `skill hook <event>`
@@ -25,6 +26,7 @@ Supported actions:
 ## Mapping to OCT tools
 
 - `plugin ...` → `tools/plugin-manager.sh`
+- `migrate-installed ...` → `tools/plugin-manager.sh migrate-installed ...`
 - `diagnose` → `tools/plugin-selfcheck.sh` + key path checks
 - `skill hook ...` → `scripts/hooks/run-system-skills.sh`
 - `matrix ...` → `make matrix ...` (or `tools/upgrade-matrix.sh` through Make)
