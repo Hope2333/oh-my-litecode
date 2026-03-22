@@ -49,16 +49,33 @@ NC='\033[0m' # No Color
 # Note: do not source scripts from ./tools directly.
 # Many tool scripts are executable entrypoints with side effects at source time.
 
-# Show help
+# Show help - Platform-aware
 _show_help() {
+    local platform
+    platform="$(_oml_platform_label)"
+    
+    # Platform-specific descriptions
+    local build_desc="Unified build orchestrator"
+    local opencode_desc="Manage opencode-termux integration"
+    
+    if [[ "$platform" == "termux" ]]; then
+        build_desc="Unified build orchestrator (Termux first, GNU/Linux second)"
+        opencode_desc="Manage opencode-termux integration (Termux native)"
+    else
+        build_desc="Unified build orchestrator (GNU/Linux native)"
+        opencode_desc="Manage opencode-termux integration (compatibility layer)"
+    fi
+    
     cat <<EOF
 Oh-My-Litecode (OML) v${OML_VERSION}
-Unified Toolchain Manager for Termux/Android AI Development
+Unified Toolchain Manager for AI-Assisted Development
+
+Current Platform: ${platform}
 
 Usage: oml <command> [options]
 
 Commands:
-  build       Unified build orchestrator (Termux first, GNU/Linux second)
+  build       ${build_desc}
     --project <name>   Project: opencode or bun
     --target <name>    termux-dpkg | termux-pacman | gnu-debian | gnu-arch
     --ver <version>    Target version (default: opencode=latest, bun=1.3.9)
@@ -79,7 +96,7 @@ Commands:
     <project>          Project name (opencode, bun, oml)
     <topic>            Topic (optional)
 
-  opencode    Manage opencode-termux integration (Termux first, GNU/Linux second)
+  opencode    ${opencode_desc}
     help                      Show opencode subcommand help
     path                      Show resolved OCT paths
     diagnose                  Run read-only diagnostics (selfcheck + key file checks)
@@ -109,6 +126,8 @@ Commands:
 
   mcps        MCP service management
     context7 <action>           Context7 MCP service
+    grep-app <action>           Grep.app MCP service (code search)
+    websearch <action>          WebSearch MCP service (Exa AI) [GNU/Linux only]
     list                        List all MCP services
 
   qwen        Qwen agent (qwenx compatibility layer)
@@ -124,24 +143,33 @@ Commands:
 
   version     Show version info
   help        Show this help
-
-Examples:
-  oml build --project opencode --target termux-dpkg --ver 1.2.10
-  oml build --project opencode --target gnu-arch --ver 1.2.10
-  oml build --project bun --target termux-pacman --ver 1.3.9
-  oml hotfix list
-  oml doc opencode installation
-  oml opencode diagnose
-  oml opencode migrate-installed
-  oml opencode plugin install
-  oml opencode skill hook post_upgrade
-  oml opencode plugin-build --plugin omo --odir ~/oct-plugin-out
-
-Projects:
-  opencode    OpenCode for Termux with TTY/lock cleanup launcher
-  bun         Bun runtime for Termux (glibc-runner wrapper)
-
 EOF
+
+    # Platform-specific examples
+    echo ""
+    echo "Examples:"
+    if [[ "$platform" == "termux" ]]; then
+        echo "  oml build --project opencode --target termux-dpkg --ver 1.2.10"
+        echo "  oml build --project bun --target termux-pacman --ver 1.3.9"
+    else
+        echo "  oml build --project opencode --target gnu-arch --ver 1.2.10"
+        echo "  oml build --project opencode --target gnu-debian --ver 1.2.10"
+    fi
+    echo "  oml hotfix list"
+    echo "  oml doc opencode installation"
+    echo "  oml opencode diagnose"
+    echo "  oml opencode migrate-installed"
+    echo "  oml opencode plugin install"
+    echo "  oml opencode skill hook post_upgrade"
+    echo "  oml opencode plugin-build --plugin omo --odir ~/oct-plugin-out"
+    echo ""
+    echo "Projects:"
+    echo "  opencode    OpenCode for Termux with TTY/lock cleanup launcher"
+    if [[ "$platform" == "termux" ]]; then
+        echo "  bun         Bun runtime for Termux (glibc-runner wrapper)"
+    else
+        echo "  bun         Bun runtime (Termux compatibility via opencode-termux)"
+    fi
 }
 
 # Build command
@@ -761,11 +789,14 @@ _cmd_worker() {
     "${worker_plugin_dir}/main.sh" "$@"
 }
 
-# MCPs management command
+# MCPs management command - Platform-aware
 _cmd_mcps() {
     local service="${1:-}"
     shift || true
     
+    local platform
+    platform="$(_oml_platform_label)"
+
     case "$service" in
         context7)
             local context7_plugin_dir="${OML_PLUGINS}/mcps/context7"
@@ -777,25 +808,69 @@ _cmd_mcps() {
                 return 1
             fi
             ;;
+        grep-app)
+            local grep_app_plugin_dir="${OML_PLUGINS}/mcps/grep-app"
+            if [[ -d "$grep_app_plugin_dir" && -x "${grep_app_plugin_dir}/main.sh" ]]; then
+                "${grep_app_plugin_dir}/main.sh" "$@"
+            else
+                echo -e "${RED}Grep-App MCP plugin not found${NC}"
+                return 1
+            fi
+            ;;
+        websearch)
+            # WebSearch is GNU/Linux only (requires Exa API, not available on Termux)
+            if [[ "$platform" == "termux" ]]; then
+                echo -e "${RED}Error: WebSearch MCP is not available on Termux${NC}"
+                echo "WebSearch requires Exa API which is only supported on GNU/Linux."
+                return 1
+            fi
+            local websearch_plugin_dir="${OML_PLUGINS}/mcps/websearch"
+            if [[ -d "$websearch_plugin_dir" && -x "${websearch_plugin_dir}/main.sh" ]]; then
+                "${websearch_plugin_dir}/main.sh" "$@"
+            else
+                echo -e "${RED}WebSearch MCP plugin not found${NC}"
+                echo "Run: bash ${OML_ROOT}/plugins/mcps/websearch/scripts/post-install.sh"
+                return 1
+            fi
+            ;;
         list)
             echo "Available MCP services:"
             echo "  context7  - Context7 documentation service"
-            echo "  websearch - Web search service (via EXA)"
-            echo "  grep-app  - Code search service"
+            echo "  grep-app  - Code search service (GitHub/StackOverflow)"
+            if [[ "$platform" != "termux" ]]; then
+                echo "  websearch - Web search service (Exa AI) [GNU/Linux only]"
+            fi
             ;;
         help|--help|-h|"")
             cat <<EOF
 OML MCP Services
 
+Platform: ${platform}
+
 Usage: oml mcps <service> <action>
 
 Services:
-  context7    Context7 documentation service
-  list        List all available MCP services
+  context7    Context7 documentation service (all platforms)
+  grep-app    Code search service (all platforms)
+EOF
+            if [[ "$platform" != "termux" ]]; then
+                cat <<EOF
+  websearch   Web search via Exa AI (GNU/Linux only)
+EOF
+            fi
+            cat <<EOF
 
 Examples:
   oml mcps context7 enable --mode local
   oml mcps context7 status
+  oml mcps grep-app search "python function" --ext py
+EOF
+            if [[ "$platform" != "termux" ]]; then
+                cat <<EOF
+  oml mcps websearch search "OpenAI API documentation"
+EOF
+            fi
+            cat <<EOF
   oml mcps list
 EOF
             ;;
