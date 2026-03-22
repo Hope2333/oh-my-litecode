@@ -13,6 +13,11 @@ if [[ -f "${OML_CORE_DIR}/platform.sh" ]]; then
     source "${OML_CORE_DIR}/platform.sh"
 fi
 
+# Log functions
+log_info() { echo "[INFO] $1" >&2; }
+log_error() { echo "[ERROR] $1" >&2; }
+log_warn() { echo "[WARN] $1" >&2; }
+
 # Configuration
 EXA_BASE_URL="${EXA_BASE_URL:-https://api.exa.ai}"
 EXA_API_KEY="${EXA_API_KEY:-}"
