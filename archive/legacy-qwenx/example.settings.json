@@ -1,0 +1,92 @@
+{
+  "security": {
+    "auth": {
+      "selectedType": "qwen-oauth"
+    }
+  },
+  "modelProviders": {
+    "openai": []
+  },
+  "general": {
+    "language": "zh",
+    "outputLanguage": "中文[简>繁] > 日本語 > English",
+    "mobileSettings": false,
+    "previewFeatures": true
+  },
+  "output": {
+    "format": "text"
+  },
+  "tools": {
+    "shell": {
+      "enableInteractiveShell": true
+    },
+    "approvalMode": "yolo"
+  },
+  "ui": {
+    "showLineNumbers": true,
+    "feedbackLastShownTimestamp": 1774205329975
+  },
+  "mcp": {
+    "servers": [
+      {
+        "name": "playwright",
+        "url": "http://localhost:8080",
+        "protocol": "mcp",
+        "enabled": true
+      },
+      {
+        "name": "rag",
+        "url": "http://localhost:8081",
+        "protocol": "mcp",
+        "enabled": true
+      },
+      {
+        "name": "code-analyzer",
+        "url": "http://localhost:8082",
+        "protocol": "mcp",
+        "enabled": true
+      },
+      {
+        "name": "context7",
+        "protocol": "mcp",
+        "enabled": true,
+        "url": "https://mcp.context7.com/mcp"
+      }
+    ],
+    "allowed": [
+      "context7",
+      "grep-app",
+      "websearch"
+    ]
+  },
+  "mcpServers": {
+    "context7": {
+      "httpUrl": "https://mcp.context7.com/mcp",
+      "headers": {
+        "CONTEXT7_API_KEY": "$CONTEXT7_API_KEY",
+        "Accept": "application/json, text/event-stream"
+      },
+      "timeout": 600000,
+      "trust": false,
+      "protocol": "mcp",
+      "enabled": true,
+      "excludeTools": []
+    },
+    "grep-app": {
+      "url": "http://localhost:8091",
+      "trust": false,
+      "excludeTools": [
+        "*"
+      ]
+    },
+    "websearch": {
+      "httpUrl": "https://mcp.exa.ai/mcp?tools=web_search_exa",
+      "headers": {
+        "x-api-key": "$EXA_API_KEY"
+      },
+      "timeout": 600000,
+      "trust": false
+    }
+  },
+  "$version": 3
+}

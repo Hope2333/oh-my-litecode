@@ -1,0 +1,80 @@
+{
+  "taskCategories": {
+    "quick": {
+      "model": "gpt-5-codex"
+    },
+    "deep_reasoning": {
+      "model": "gpt-5.3-codex"
+    },
+    "docs": {
+      "model": "gemini-2.5-pro"
+    },
+    "ui": {
+      "model": "gpt-5.1-codex"
+    },
+    "visual_engineering": {
+      "model": "gemini-3-pro-preview"
+    },
+    "ultrabrain": {
+      "model": "gpt-5.3-codex"
+    },
+    "artistry": {
+      "model": "gemini-3-pro-image"
+    },
+    "unspecified_low": {
+      "model": "gpt-5-codex-mini"
+    },
+    "unspecified_high": {
+      "model": "claude-opus-4-6-thinking"
+    },
+    "writing": {
+      "model": "gemini-2.5-flash"
+    }
+  },
+  "agentRouting": {
+    "research": [
+      "librarian",
+      "explore",
+      "plan"
+    ],
+    "architecture": [
+      "metis",
+      "oracle",
+      "momus"
+    ],
+    "implementation": [
+      "build",
+      "atlas"
+    ],
+    "pre_commit": [
+      "reviewer",
+      "security-auditor",
+      "momus"
+    ],
+    "docs": [
+      "doc-writer",
+      "librarian"
+    ],
+    "multimodal": [
+      "multimodal-looker"
+    ]
+  },
+  "executionPolicy": {
+    "parallelExecution": true,
+    "maxConcurrentTasks": 5,
+    "defaultTimeoutMs": 120000,
+    "allowBackgroundJobs": true
+  },
+  "insightSources": {
+    "forAI": {
+      "enabled": true,
+      "notes": ".qwen/research/opencode-insights.md",
+      "origin": [
+        "forAI/extracted/opencode/opencode.json",
+        "forAI/extracted/opencode/oh-my-opencode.json",
+        "forAI/extracted/opencode/oh-my-opencode-hybrid.json"
+      ],
+      "secretsMigrated": false
+    }
+  }
+}
