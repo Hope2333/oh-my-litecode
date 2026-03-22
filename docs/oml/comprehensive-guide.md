@@ -15,6 +15,7 @@ Oh-My-Litecode (OML) 是一个统一的工具链管理器，专注于 Termux/And
 | 缩写 | 全名 | 仓库 | 状态 |
 |------|------|------|------|
 | OML | Oh-My-Litecode | Hope2333/oh-my-litecode | 母项目 |
+| OMT | oml-tools | Hope2333/oml-tools | ✅ 完成 |
 | OCT | OpenCode-Termux | Hope2333/opencode-termux | ✅ 完成 |
 | BUN | bun-termux | Hope2333/bun-termux | ✅ 完成 |
 | OMG | omgemini | - | 规划中 |
@@ -28,6 +29,8 @@ bun-termux (独立)
     └── opencode-termux (depends: bun)
             ↑
             └── oh-my-litecode (meta/工具集)
+
+oml-tools (外置工具协议 + MCP gateway，跨客户端基线)
 ```
 
 ---
@@ -131,7 +134,7 @@ git push origin v1.2.0
 ### 5.2 调试机信息
 
 ```
-SSH: u0_a450@172.18.0.1 -p 8022 (密码: 0)
+SSH: u0_a450@172.18.0.1 -p 8022 (密码已脱敏)
 备用: u0_a450@192.168.1.164 -p 8022
 包管理器: pacman
 前缀: /data/data/com.termux/files/usr
@@ -146,6 +149,7 @@ SSH: u0_a450@172.18.0.1 -p 8022 (密码: 0)
 | [packaging-standards.md](./packaging-standards.md) | 包命名与构建规范 |
 | [build-rules.md](./build-rules.md) | 通用构建规则 |
 | [session-sync-prompts.md](./session-sync-prompts.md) | Session 同步提示词 |
+| [oml-tools.md](./oml-tools.md) | OML 外置工具协议与新仓库入口 |
 | [glossary.md](./glossary.md) | 术语表 |
 | [opencode/architecture.md](../opencode/architecture.md) | OCT 架构 |
 | [opencode/installation.md](../opencode/installation.md) | OCT 安装指南 |

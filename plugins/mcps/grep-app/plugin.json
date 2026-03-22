@@ -1,0 +1,73 @@
+{
+  "name": "grep-app",
+  "version": "1.0.0",
+  "type": "mcp",
+  "description": "Grep-App MCP 服务 - 自然语言搜索、正则匹配、代码统计与文件发现",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["grep", "find", "python3"],
+  "env": {
+    "GREP_APP_DEFAULT_PATH": {"required": false, "default": "."},
+    "GREP_APP_MAX_RESULTS": {"required": false, "default": "100"},
+    "GREP_APP_EXCLUDE_DIRS": {"required": false, "default": "node_modules,.git,__pycache__,.venv,venv,dist,build"}
+  },
+  "commands": [
+    {
+      "name": "search",
+      "description": "自然语言搜索代码内容",
+      "handler": "main.sh search"
+    },
+    {
+      "name": "regex",
+      "description": "正则表达式搜索",
+      "handler": "main.sh regex"
+    },
+    {
+      "name": "count",
+      "description": "统计匹配数量",
+      "handler": "main.sh count"
+    },
+    {
+      "name": "files",
+      "description": "列出匹配的文件",
+      "handler": "main.sh files"
+    },
+    {
+      "name": "config",
+      "description": "配置管理",
+      "handler": "main.sh config"
+    },
+    {
+      "name": "enable",
+      "description": "启用 Grep-App MCP",
+      "handler": "main.sh enable"
+    },
+    {
+      "name": "disable",
+      "description": "禁用 Grep-App MCP",
+      "handler": "main.sh disable"
+    },
+    {
+      "name": "status",
+      "description": "查看服务状态",
+      "handler": "main.sh status"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "mcpConfig": {
+    "defaultMode": "stdio",
+    "stdioCommand": ["bash", "-c", "grep-app main.sh mcp-stdio"],
+    "httpPort": 8765,
+    "tools": [
+      "grep_search_intent",
+      "grep_regex",
+      "grep_count",
+      "grep_files_with_matches",
+      "grep_advanced"
+    ]
+  }
+}

@@ -18,6 +18,7 @@ OML serves as an orchestrator for multiple sub-projects, providing:
 |---------|-------------|--------|
 | `solve-android/opencode` | OpenCode for Termux with TTY/lock cleanup | Active |
 | `solve-android/bun` | Bun runtime for Termux (glibc-runner) | Active |
+| `oml-tools` | External tools contract + MCP gateway (cross-client) | Active |
 
 ## Quick Start
 
@@ -43,6 +44,9 @@ OML serves as an orchestrator for multiple sub-projects, providing:
 # Manage opencode-termux integration
 ./oml opencode diagnose
 ./oml opencode migrate-installed
+./oml opencode plugin list
+./oml opencode plugin latest
+./oml opencode plugin build --plugin mystatus --odir ~/oct-plugin-out
 ./oml opencode plugin install
 ./oml opencode skill list
 ./oml opencode matrix --vers "1.2.9 1.2.10" --odir ~/oct-out/deb

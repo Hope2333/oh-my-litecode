@@ -1,0 +1,86 @@
+{
+  "name": "reviewer",
+  "version": "0.1.0",
+  "type": "subagent",
+  "description": "Code Reviewer Subagent for code quality review, security auditing, style checking, and best practices validation",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3", "jq", "find", "grep"],
+  "env": {
+    "OML_REVIEWER_OUTPUT_FORMAT": {"required": false, "default": "markdown"},
+    "OML_REVIEWER_MAX_ISSUES": {"required": false, "default": "100"},
+    "OML_REVIEWER_EXCLUDE_PATTERNS": {"required": false, "default": "node_modules,.git,__pycache__,.venv,dist,build,.cache,target,coverage,.idea,.vscode"},
+    "OML_REVIEWER_SECURITY_ENABLED": {"required": false, "default": "true"},
+    "OML_REVIEWER_STYLE_ENABLED": {"required": false, "default": "true"},
+    "OML_REVIEWER_PERFORMANCE_ENABLED": {"required": false, "default": "true"},
+    "OML_REVIEWER_BEST_PRACTICES_ENABLED": {"required": false, "default": "true"},
+    "OML_REVIEWER_STRICT_MODE": {"required": false, "default": "false"}
+  },
+  "commands": [
+    {
+      "name": "code",
+      "description": "Comprehensive code review (all checks)",
+      "handler": "main.sh code"
+    },
+    {
+      "name": "security",
+      "description": "Security vulnerability audit",
+      "handler": "main.sh security"
+    },
+    {
+      "name": "style",
+      "description": "Code style and formatting check",
+      "handler": "main.sh style"
+    },
+    {
+      "name": "performance",
+      "description": "Performance issue analysis",
+      "handler": "main.sh performance"
+    },
+    {
+      "name": "best-practices",
+      "description": "Best practices compliance check",
+      "handler": "main.sh best-practices"
+    },
+    {
+      "name": "report",
+      "description": "Generate structured review report",
+      "handler": "main.sh report"
+    },
+    {
+      "name": "help",
+      "description": "Show help message",
+      "handler": "main.sh help"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "features": {
+    "codeStyleChecking": true,
+    "securityVulnerabilityScanning": true,
+    "performanceIssueDetection": true,
+    "bestPracticesValidation": true,
+    "structuredReportGeneration": true,
+    "multiLanguageSupport": true,
+    "jsonOutput": true,
+    "markdownOutput": true,
+    "securityAuditorIntegration": true,
+    "configurableSeverityLevels": true,
+    "excludePatternSupport": true
+  },
+  "outputFormats": ["json", "markdown", "text"],
+  "supportedLanguages": [
+    "javascript", "typescript", "python", "bash", "shell", "go", "rust",
+    "java", "c", "cpp", "ruby", "php", "sql", "yaml", "json"
+  ],
+  "severityLevels": ["critical", "high", "medium", "low", "info"],
+  "checkCategories": {
+    "security": ["injection", "xss", "csrf", "hardcoded-secrets", "insecure-crypto", "path-traversal", "command-injection"],
+    "style": ["naming-conventions", "indentation", "line-length", "whitespace", "braces", "comments"],
+    "performance": ["inefficient-loops", "memory-leaks", "unnecessary-allocations", "blocking-operations", "caching-opportunities"],
+    "best-practices": ["error-handling", "logging", "documentation", "code-duplication", "magic-numbers", "dead-code"]
+  }
+}

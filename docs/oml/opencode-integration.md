@@ -25,7 +25,9 @@ Supported actions:
 
 ## Mapping to OCT tools
 
-- `plugin ...` → `tools/plugin-manager.sh`
+- `plugin list|latest` → `opencode-plugins-termux/tools/plugin-catalog.py`
+- `plugin build ...` → `opencode-plugins-termux make all ...`
+- other `plugin ...` actions → `tools/plugin-manager.sh`
 - `migrate-installed ...` → `tools/plugin-manager.sh migrate-installed ...`
 - `diagnose` → `tools/plugin-selfcheck.sh` + key path checks
 - `skill hook ...` → `scripts/hooks/run-system-skills.sh`

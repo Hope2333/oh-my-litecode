@@ -1,0 +1,54 @@
+============================================
+OML Worker Pool Performance Benchmark
+============================================
+
+Configuration:
+  Sample Count:  20
+  Warmup Count:  3
+  Pool Size:     3
+  Output Format: text
+  Test Dir:      /data/data/com.termux/files/usr/tmp/tmp.Bi6y6S2rYz
+
+[INFO] Setting up test environment at: /data/data/com.termux/files/usr/tmp/tmp.Bi6y6S2rYz
+[INFO] Running Worker Creation Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Worker Creation Benchmark ===
+  Samples:    20
+  Avg:        146.16581545 ms
+  Min:        138.714231 ms
+  Max:        152.310769 ms
+  P50:        146.411692 ms
+  P95:        152.310769 ms
+  P99:        152.310769 ms
+[INFO] Running Task Assignment Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Task Assignment Benchmark ===
+  Workers:    3
+  Samples:    20
+  Avg:        233.86692309999998 ms
+  Min:        223.442153 ms
+  Max:        249.152923 ms
+  P50:        233.481615 ms
+  P95:        249.152923 ms
+  P99:        249.152923 ms
+  Throughput: 4.275936018418502 tasks/sec
+[INFO] Running Worker Scheduling Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Worker Scheduling Benchmark ===
+  Pool Size:  3
+  Samples:    20
+  Avg:        91.67307319999999 ms
+  Min:        88.491693 ms
+  Max:        96.631385 ms
+  P50:        91.124308 ms
+  P95:        96.631385 ms
+  P99:        96.631385 ms
+[INFO] Running Autoscaling Benchmark...
+[INFO]   Warmup: Creating initial workers...
+[INFO]   Running benchmark (scale up/down cycles)...

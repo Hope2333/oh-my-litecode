@@ -1,0 +1,51 @@
+{
+  "name": "plan",
+  "version": "1.0.0",
+  "type": "agent",
+  "description": "Plan Agent - 任务规划、分解、依赖分析与进度追踪",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3"],
+  "env": {
+    "OML_PLAN_VERBOSE": {"required": false, "default": "false"},
+    "OML_PLAN_DATA_DIR": {"required": false, "default": ""},
+    "OML_OUTPUT_FORMAT": {"required": false, "default": "text"}
+  },
+  "commands": [
+    {
+      "name": "create",
+      "description": "创建计划 (plan create <title> [OPTIONS])",
+      "handler": "main.sh create"
+    },
+    {
+      "name": "list",
+      "description": "列出计划 (plan list [OPTIONS])",
+      "handler": "main.sh list"
+    },
+    {
+      "name": "status",
+      "description": "计划状态 (plan status <plan-id>)",
+      "handler": "main.sh status"
+    },
+    {
+      "name": "update",
+      "description": "更新计划 (plan update <plan-id> [OPTIONS])",
+      "handler": "main.sh update"
+    },
+    {
+      "name": "complete",
+      "description": "标记完成 (plan complete <plan-id> [task-id])",
+      "handler": "main.sh complete"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "fakeHome": {
+    "enabled": true,
+    "path": "~/.local/home/plan",
+    "configDir": ".plan"
+  }
+}

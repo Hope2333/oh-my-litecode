@@ -28,6 +28,16 @@ OML_SOLVE_ANDROID="$OML_ROOT/solve-android"
 OML_OCT_DIR="${OML_OCT_DIR:-$OML_ROOT/../opencode-termux}"
 OML_BUN_DIR="${OML_BUN_DIR:-$OML_ROOT/../bun-termux}"
 OML_OCT_PLUGINS_DIR="${OML_OCT_PLUGINS_DIR:-$OML_ROOT/../opencode-plugins-termux}"
+OML_CORE="${OML_ROOT}/core"
+OML_PLUGINS="${OML_ROOT}/plugins"
+
+# Source core modules
+if [[ -f "${OML_CORE}/platform.sh" ]]; then
+    source "${OML_CORE}/platform.sh"
+fi
+if [[ -f "${OML_CORE}/plugin-loader.sh" ]]; then
+    source "${OML_CORE}/plugin-loader.sh"
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -80,6 +90,37 @@ Commands:
     matrix --vers "..."       Run machine1->machine2 matrix via OCT Makefile/tools
     build [--ver V] [--pkg P] Build via OCT Makefile (default deb)
     plugin-build ...           Build external plugin packages via opencode-plugins-termux
+
+  plugins     Manage OML plugins (agents, subagents, MCPs, skills)
+    list [type]               List plugins (type: all|agents|subagents|mcps|skills)
+    install <source> [type]   Install plugin from directory or git URL
+    enable <name> [type]      Enable a plugin
+    disable <name> [type]     Disable a plugin
+    run <name> [cmd] [args]   Run plugin command
+    info <name>               Show plugin information
+    create <name> [type]      Create new plugin template
+
+  worker      Subagent worker for parallel task execution
+    spawn <agent> --task "<desc>" [--scope "<pattern>"] [--background]
+    status [filter]             Show task status (all|running|pending)
+    logs --task-id "<id>" [-f]  Show task logs
+    cancel --task-id "<id>"     Cancel running task
+    wait                        Wait for all tasks
+
+  mcps        MCP service management
+    context7 <action>           Context7 MCP service
+    list                        List all MCP services
+
+  qwen        Qwen agent (qwenx compatibility layer)
+    (query)                   Start chat session with query
+    ctx7 <subcmd>             Context7 key management
+    models <subcmd>           Model management
+    mcp                       MCP server management
+
+  platform    Platform detection and utilities
+    detect                    Detect platform (termux/gnu-linux)
+    info                      Show platform information
+    doctor                    Run health check
 
   version     Show version info
   help        Show this help
@@ -312,6 +353,89 @@ _require_oct_repo() {
     return 0
 }
 
+_require_oct_plugins_repo() {
+    if [[ ! -d "$OML_OCT_PLUGINS_DIR" ]]; then
+        echo -e "${RED}Error: plugin builder repo not found: $OML_OCT_PLUGINS_DIR${NC}"
+        return 1
+    fi
+    return 0
+}
+
+_cmd_opencode_plugin_catalog() {
+    _require_oct_plugins_repo || return 1
+    local latest=false
+    local json=false
+    local plain=false
+    local no_color=false
+    local plugin=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --latest) latest=true; shift ;;
+            --json) json=true; shift ;;
+            --plain) plain=true; shift ;;
+            --no-color) no_color=true; shift ;;
+            --plugin) plugin="$2"; shift 2 ;;
+            *) echo -e "${YELLOW}warn: unknown arg: $1${NC}"; shift ;;
+        esac
+    done
+
+    local cmd=(python3 "$OML_OCT_PLUGINS_DIR/tools/plugin-catalog.py" "$OML_OCT_PLUGINS_DIR")
+    [[ "$latest" == true ]] && cmd+=(--latest)
+    [[ "$json" == true ]] && cmd+=(--json)
+    [[ "$plain" == true ]] && cmd+=(--plain)
+    [[ "$no_color" == true ]] && cmd+=(--no-color)
+    [[ -n "$plugin" ]] && cmd+=(--plugin "$plugin")
+    "${cmd[@]}"
+}
+
+_cmd_opencode_plugin_build() {
+    _require_oct_plugins_repo || return 1
+    local plugin="omo"
+    local mode="source"
+    local odir=""
+    local mix="0"
+    local list_only=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --plugin) plugin="$2"; shift 2 ;;
+            --mode) mode="$2"; shift 2 ;;
+            --odir) odir="$2"; shift 2 ;;
+            --mix) mix="1"; shift ;;
+            --list) list_only=true; shift ;;
+            *) echo -e "${YELLOW}warn: unknown arg: $1${NC}"; shift ;;
+        esac
+    done
+
+    if [[ "$list_only" == true ]]; then
+        _cmd_opencode_plugin_catalog
+        return 0
+    fi
+
+    local resolved
+    resolved="$("$OML_OCT_PLUGINS_DIR/tools/resolve-plugin-dir.sh" "$plugin" "$OML_OCT_PLUGINS_DIR")"
+    if [[ -z "$resolved" ]]; then
+        echo -e "${RED}Error: unknown plugin key: $plugin${NC}"
+        echo -e "${BLUE}[oml] available plugins:${NC}"
+        _cmd_opencode_plugin_catalog --plain
+        return 1
+    fi
+
+    local build_cmd=(make -C "$OML_OCT_PLUGINS_DIR" all "PLUGIN=$plugin" "MODE=$mode" "MIX=$mix")
+    [[ -n "$odir" ]] && build_cmd+=("ODIR=$odir")
+
+    if "${build_cmd[@]}"; then
+        return 0
+    fi
+
+    echo -e "${YELLOW}[oml] direct build failed; retrying with local proxy 127.0.0.1:7890${NC}"
+    http_proxy="http://127.0.0.1:7890" \
+    https_proxy="http://127.0.0.1:7890" \
+    all_proxy="socks5h://127.0.0.1:7890" \
+    "${build_cmd[@]}"
+}
+
 _cmd_opencode_help() {
     cat <<EOF
 Usage: oml opencode <action> [subargs]
@@ -330,8 +454,12 @@ Actions:
       oml opencode migrate-installed oh-my-opencode
 
   plugin <action> [args]
-    Forward to: tools/plugin-manager.sh
+    `list` / `latest` / `build` handled by OML catalog/build bridge.
+    Other actions forward to: tools/plugin-manager.sh
     Examples:
+      oml opencode plugin list
+      oml opencode plugin latest
+      oml opencode plugin build --plugin omo
       oml opencode plugin install
       oml opencode plugin update
       oml opencode plugin migrate-installed
@@ -353,6 +481,7 @@ Actions:
 
   plugin-build [--plugin KEY] [--mode source] [--odir DIR] [--mix]
     Build external plugin packages via opencode-plugins-termux.
+    Compatibility alias for: `oml opencode plugin build ...`
     Example:
       oml opencode plugin-build --plugin qwen-oauth-gd --odir ~/oct-plugin-out
 
@@ -406,6 +535,20 @@ _cmd_opencode() {
                 echo -e "${RED}Error: plugin action is required${NC}"
                 return 1
             fi
+            case "$sub" in
+                list|catalog)
+                    _cmd_opencode_plugin_catalog "$@"
+                    return $?
+                    ;;
+                latest|status)
+                    _cmd_opencode_plugin_catalog --latest "$@"
+                    return $?
+                    ;;
+                build)
+                    _cmd_opencode_plugin_build "$@"
+                    return $?
+                    ;;
+            esac
             if [[ ! -x "$OML_OCT_DIR/tools/plugin-manager.sh" ]]; then
                 echo -e "${RED}Error: missing executable: $OML_OCT_DIR/tools/plugin-manager.sh${NC}"
                 return 1
@@ -483,32 +626,182 @@ _cmd_opencode() {
 			fi
 			;;
 		plugin-build)
-			local plugin="omo"
-			local mode="source"
-			local odir=""
-			local mix="0"
-			while [[ $# -gt 0 ]]; do
-				case "$1" in
-					--plugin) plugin="$2"; shift 2 ;;
-					--mode) mode="$2"; shift 2 ;;
-					--odir) odir="$2"; shift 2 ;;
-					--mix) mix="1"; shift ;;
-					*) echo -e "${YELLOW}warn: unknown arg: $1${NC}"; shift ;;
-				esac
-			done
-			if [[ ! -d "$OML_OCT_PLUGINS_DIR" ]]; then
-				echo -e "${RED}Error: plugin builder repo not found: $OML_OCT_PLUGINS_DIR${NC}"
-				return 1
-			fi
-			if [[ -n "$odir" ]]; then
-				make -C "$OML_OCT_PLUGINS_DIR" all "PLUGIN=$plugin" "MODE=$mode" "ODIR=$odir" "MIX=$mix"
-			else
-				make -C "$OML_OCT_PLUGINS_DIR" all "PLUGIN=$plugin" "MODE=$mode" "MIX=$mix"
-			fi
+			_cmd_opencode_plugin_build "$@"
 			;;
         *)
             echo -e "${RED}Unknown opencode action: $action${NC}"
             _cmd_opencode_help
+            return 1
+            ;;
+    esac
+}
+
+# Platform commands
+_cmd_platform() {
+    local action="${1:-detect}"
+    shift || true
+    
+    case "$action" in
+        detect)
+            oml_platform_detect
+            ;;
+        info)
+            echo "Platform: $(oml_platform_detect)"
+            echo "Label: $(oml_platform_label)"
+            echo "Family: $(oml_platform_family)"
+            echo "Package Manager: $(oml_pkgmgr_detect)"
+            echo "Prefix: $(oml_prefix_path)"
+            echo "Architecture: $(oml_arch)"
+            echo "Home: $(oml_home_path)"
+            echo "Config Dir: $(oml_config_dir)"
+            ;;
+        doctor)
+            echo -e "${BLUE}OML Health Check${NC}"
+            echo ""
+            echo "Platform:"
+            echo "  OS: $(oml_platform_detect)"
+            echo "  Arch: $(oml_arch)"
+            echo ""
+            echo "Dependencies:"
+            local deps_check
+            deps_check="$(oml_check_deps bash python3 git nodejs 2>&1 || true)"
+            if [[ "$deps_check" == "ok" ]]; then
+                echo "  ✓ All dependencies installed"
+            else
+                echo "  ✗ ${deps_check#missing:}"
+            fi
+            echo ""
+            echo "Configuration:"
+            local config_dir
+            config_dir="$(oml_config_dir)"
+            if [[ -d "$config_dir" ]]; then
+                echo "  ✓ Config directory exists: $config_dir"
+            else
+                echo "  ✗ Config directory not found"
+            fi
+            echo ""
+            echo "Plugins:"
+            if [[ -d "${OML_PLUGINS}" ]]; then
+                local plugin_count
+                plugin_count="$(find "${OML_PLUGINS}" -name "plugin.json" 2>/dev/null | wc -l)"
+                echo "  ✓ Plugin directory exists: ${plugin_count} plugins found"
+            else
+                echo "  ✗ Plugin directory not found"
+            fi
+            ;;
+        *)
+            echo "Unknown platform action: $action"
+            return 1
+            ;;
+    esac
+}
+
+# Plugin management command
+_cmd_plugins() {
+    local action="${1:-list}"
+    shift || true
+    
+    case "$action" in
+        list)
+            oml_plugins_list "$@"
+            ;;
+        install)
+            oml_plugin_install "$@"
+            ;;
+        enable)
+            oml_plugin_enable "$@"
+            ;;
+        disable)
+            oml_plugin_disable "$@"
+            ;;
+        run)
+            oml_plugin_run "$@"
+            ;;
+        info)
+            oml_plugin_info "$@"
+            ;;
+        create)
+            oml_plugin_create "$@"
+            ;;
+        help|--help|-h)
+            oml_plugins_list help
+            ;;
+        *)
+            echo "Unknown plugin action: $action"
+            echo "Use 'oml plugins help' for usage"
+            return 1
+            ;;
+    esac
+}
+
+# Qwen agent command (qwenx compatibility)
+_cmd_qwen() {
+    local qwen_plugin_dir="${OML_PLUGINS}/agents/qwen"
+    
+    if [[ ! -d "$qwen_plugin_dir" ]]; then
+        echo -e "${RED}Error: Qwen plugin not found${NC}"
+        echo "Install it with: oml plugins enable qwen"
+        return 1
+    fi
+    
+    # Run qwen plugin
+    "${qwen_plugin_dir}/main.sh" "$@"
+}
+
+# Worker subagent command
+_cmd_worker() {
+    local worker_plugin_dir="${OML_PLUGINS}/subagents/worker"
+    
+    if [[ ! -d "$worker_plugin_dir" ]]; then
+        echo -e "${RED}Error: Worker plugin not found${NC}"
+        return 1
+    fi
+    
+    # Run worker plugin
+    "${worker_plugin_dir}/main.sh" "$@"
+}
+
+# MCPs management command
+_cmd_mcps() {
+    local service="${1:-}"
+    shift || true
+    
+    case "$service" in
+        context7)
+            local context7_plugin_dir="${OML_PLUGINS}/mcps/context7"
+            if [[ -d "$context7_plugin_dir" && -x "${context7_plugin_dir}/main.sh" ]]; then
+                "${context7_plugin_dir}/main.sh" "$@"
+            else
+                echo -e "${RED}Context7 MCP plugin not found${NC}"
+                echo "You can create it with: oml plugins create context7 mcps"
+                return 1
+            fi
+            ;;
+        list)
+            echo "Available MCP services:"
+            echo "  context7  - Context7 documentation service"
+            echo "  websearch - Web search service (via EXA)"
+            echo "  grep-app  - Code search service"
+            ;;
+        help|--help|-h|"")
+            cat <<EOF
+OML MCP Services
+
+Usage: oml mcps <service> <action>
+
+Services:
+  context7    Context7 documentation service
+  list        List all available MCP services
+
+Examples:
+  oml mcps context7 enable --mode local
+  oml mcps context7 status
+  oml mcps list
+EOF
+            ;;
+        *)
+            echo "Unknown MCP service: $service"
+            echo "Use 'oml mcps help' for usage"
             return 1
             ;;
     esac
@@ -524,12 +817,24 @@ main() {
         hotfix)  _cmd_hotfix "$@" ;;
         doc)     _cmd_doc "$@" ;;
         opencode) _cmd_opencode "$@" ;;
+        plugins) _cmd_plugins "$@" ;;
+        worker)  _cmd_worker "$@" ;;
+        mcps)    _cmd_mcps "$@" ;;
+        qwen)    _cmd_qwen "$@" ;;
+        platform) _cmd_platform "$@" ;;
         version|--version|-v) _cmd_version ;;
         help|--help|-h) _show_help ;;
         *)
-            echo -e "${RED}Unknown command: $cmd${NC}"
-            _show_help
-            exit 1
+            # Try to find a plugin with this name
+            local plugin_dir
+            plugin_dir="$(oml_find_plugin "$cmd" 2>/dev/null || true)"
+            if [[ -n "$plugin_dir" && -x "${plugin_dir}/main.sh" ]]; then
+                "${plugin_dir}/main.sh" "$@"
+            else
+                echo -e "${RED}Unknown command: $cmd${NC}"
+                _show_help
+                exit 1
+            fi
             ;;
     esac
 }

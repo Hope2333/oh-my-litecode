@@ -1,0 +1,114 @@
+{
+  "name": "qwen",
+  "version": "1.1.0",
+  "type": "agent",
+  "description": "Qwen Code 兼容代理 (原 qwenx 功能) - 增强 Session 和 Hooks 支持",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs", "python3", "git", "bash>=4.0"],
+  "env": {
+    "QWEN_API_KEY": {"required": false, "default": ""},
+    "QWEN_BASE_URL": {"required": false, "default": ""},
+    "CONTEXT7_API_KEY": {"required": false, "default": ""},
+    "QWEN_SESSION_ENABLED": {"required": false, "default": "true", "description": "Enable session management"},
+    "QWEN_HOOKS_ENABLED": {"required": false, "default": "true", "description": "Enable hooks system"},
+    "PROMPT_SCAN_ENABLED": {"required": false, "default": "true", "description": "Enable prompt scanning"},
+    "TOOL_PERMISSION_ENABLED": {"required": false, "default": "true", "description": "Enable tool permission checks"},
+    "RESULT_CACHE_ENABLED": {"required": false, "default": "true", "description": "Enable result caching"},
+    "SESSION_SUMMARY_ENABLED": {"required": false, "default": "true", "description": "Enable session summaries"}
+  },
+  "commands": [
+    {
+      "name": "chat",
+      "description": "启动对话",
+      "handler": "main.sh chat"
+    },
+    {
+      "name": "ctx7",
+      "description": "Context7 密钥管理",
+      "handler": "main.sh ctx7"
+    },
+    {
+      "name": "models",
+      "description": "模型管理",
+      "handler": "main.sh models"
+    },
+    {
+      "name": "mcp",
+      "description": "MCP 服务管理",
+      "handler": "main.sh mcp"
+    },
+    {
+      "name": "session",
+      "description": "会话管理 (create/switch/list/messages/clear/delete)",
+      "handler": "main.sh session"
+    },
+    {
+      "name": "hooks",
+      "description": "Hooks 管理 (enable/disable/status/trigger)",
+      "handler": "main.sh hooks"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh",
+    "registered": [
+      {
+        "name": "prompt-scan",
+        "event": "qwen:user_prompt_submit",
+        "handler": "hooks/prompt-scan.sh",
+        "priority": 100,
+        "enabled": true,
+        "description": "Scan and validate user prompts before processing"
+      },
+      {
+        "name": "tool-permission",
+        "event": "qwen:pre_tool_use",
+        "handler": "hooks/tool-permission.sh",
+        "priority": 100,
+        "enabled": true,
+        "description": "Check tool permissions before execution"
+      },
+      {
+        "name": "result-cache",
+        "event": "qwen:post_tool_use",
+        "handler": "hooks/result-cache.sh",
+        "priority": 50,
+        "enabled": true,
+        "description": "Cache tool results for reuse"
+      },
+      {
+        "name": "session-summary",
+        "event": "qwen:stop",
+        "handler": "hooks/session-summary.sh",
+        "priority": 10,
+        "enabled": true,
+        "description": "Generate session summary on stop"
+      }
+    ]
+  },
+  "fakeHome": {
+    "enabled": true,
+    "path": "~/.local/home/qwen",
+    "configDir": ".qwen"
+  },
+  "features": {
+    "session": {
+      "enabled": true,
+      "description": "Session lifecycle management with message history",
+      "commands": ["create", "switch", "current", "list", "messages", "add-message", "clear", "delete"]
+    },
+    "hooks": {
+      "enabled": true,
+      "description": "Extensible hooks system for event-driven behavior",
+      "events": [
+        "qwen:user_prompt_submit",
+        "qwen:pre_tool_use",
+        "qwen:post_tool_use",
+        "qwen:stop"
+      ],
+      "builtIn": ["prompt-scan", "tool-permission", "result-cache", "session-summary"]
+    }
+  }
+}

@@ -1,0 +1,86 @@
+============================================
+OML System Performance Benchmark
+============================================
+
+Configuration:
+  Sample Count:  15
+  Warmup Count:  3
+  Pool Size:     3
+  Hook Count:    2
+  Output Format: text
+  Test Dir:      /data/data/com.termux/files/usr/tmp/tmp.lMpaSlU776
+
+[INFO] Setting up test environment at: /data/data/com.termux/files/usr/tmp/tmp.lMpaSlU776
+Pool initialized at: /data/data/com.termux/files/usr/tmp/tmp.lMpaSlU776/pool
+[INFO] Running End-to-End Workflow Benchmark (15 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== End-to-End Workflow Benchmark ===
+  Samples:    15
+  Avg:        824.9099642000001 ms
+  Min:        719.643154 ms
+  Max:        875.678846 ms
+  P50:        834.874846 ms
+  P95:        875.678846 ms
+  P99:        875.678846 ms
+[INFO] Running Integrated Session+Hooks Benchmark (15 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Integrated Session+Hooks Benchmark ===
+  Samples:    15
+  Avg:        417.242046 ms
+  Min:        361.364846 ms
+  Max:        458.499462 ms
+  P50:        415.356308 ms
+  P95:        458.499462 ms
+  P99:        458.499462 ms
+[INFO] Running Integrated Session+Pool Benchmark (15 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Integrated Session+Pool Benchmark ===
+  Workers:    3
+  Samples:    15
+  Avg:        648.7469846666668 ms
+  Min:        549.788616 ms
+  Max:        694.232539 ms
+  P50:        657.942846 ms
+  P95:        694.232539 ms
+  P99:        694.232539 ms
+[INFO] Running Full System Throughput Benchmark...
+[INFO]   Testing 45 operations across all components...
+[INFO]   Warmup...
+[INFO]   Running benchmark...
+
+=== Full System Throughput Benchmark ===
+  Workers:        3
+  Hooks:          2
+  Total Ops:      45
+  Total Time:     41202.883156 ms
+  Avg per Op:     915.619625688889 ms
+  Throughput:     1.092156581121364 ops/sec
+  Ops/sec:        1.092156581121364
+[INFO] Running System Resource Usage Benchmark...
+[INFO]   Creating 50 sessions...
+
+=== System Resource Usage Benchmark ===
+  Sessions Created:  50
+  Data Dir Size:     2990 bytes
+  Index Size:        9050 bytes
+  Avg Session Size:  59 bytes
+[INFO] Running Stress Test Benchmark...
+[INFO]   Testing 3 concurrent sessions with 10 ops each...
+
+=== Stress Test Benchmark ===
+  Concurrent Sessions: 3
+  Ops per Session:     10
+  Total Operations:    90
+  Total Time:          17516.684001 ms
+  Throughput:          5.137958759481077 ops/sec
+[INFO] Cleaning up test environment
+
+============================================
+Benchmark Complete
+============================================

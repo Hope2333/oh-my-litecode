@@ -1,0 +1,60 @@
+{
+  "name": "scout",
+  "version": "0.1.0",
+  "type": "subagent",
+  "description": "Code Scout Subagent for repository analysis, dependency mapping, and code metrics",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3", "git", "find"],
+  "env": {
+    "OML_SCOUT_OUTPUT_FORMAT": {"required": false, "default": "markdown"},
+    "OML_SCOUT_MAX_DEPTH": {"required": false, "default": "10"},
+    "OML_SCOUT_EXCLUDE_PATTERNS": {"required": false, "default": "node_modules,.git,__pycache__,.venv,dist,build"}
+  },
+  "commands": [
+    {
+      "name": "analyze",
+      "description": "Analyze codebase structure and complexity",
+      "handler": "main.sh analyze"
+    },
+    {
+      "name": "tree",
+      "description": "Generate file tree visualization",
+      "handler": "main.sh tree"
+    },
+    {
+      "name": "deps",
+      "description": "Analyze dependencies and imports",
+      "handler": "main.sh deps"
+    },
+    {
+      "name": "report",
+      "description": "Generate comprehensive analysis report",
+      "handler": "main.sh report"
+    },
+    {
+      "name": "stats",
+      "description": "Show file type statistics",
+      "handler": "main.sh stats"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "features": {
+    "fileTreeGeneration": true,
+    "codeComplexityAnalysis": true,
+    "dependencyExtraction": true,
+    "fileTypeStatistics": true,
+    "jsonOutput": true,
+    "markdownOutput": true,
+    "multiLanguageSupport": true
+  },
+  "outputFormats": ["json", "markdown"],
+  "supportedLanguages": [
+    "javascript", "typescript", "python", "bash", "go", "rust",
+    "java", "c", "cpp", "ruby", "php", "shell"
+  ]
+}

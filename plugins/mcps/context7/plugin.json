@@ -1,0 +1,55 @@
+{
+  "name": "context7",
+  "version": "0.1.0",
+  "type": "mcp",
+  "description": "Context7 MCP 服务 - 文档查询与代码上下文增强",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs", "npx"],
+  "env": {
+    "CONTEXT7_API_KEY": {"required": false, "default": ""},
+    "CONTEXT7_MODE": {"required": false, "default": "local"}
+  },
+  "commands": [
+    {
+      "name": "list",
+      "description": "列出已配置的 MCP 服务",
+      "handler": "main.sh list"
+    },
+    {
+      "name": "enable",
+      "description": "启用 MCP 服务",
+      "handler": "main.sh enable"
+    },
+    {
+      "name": "disable",
+      "description": "禁用 MCP 服务",
+      "handler": "main.sh disable"
+    },
+    {
+      "name": "status",
+      "description": "查看 MCP 服务状态",
+      "handler": "main.sh status"
+    },
+    {
+      "name": "config",
+      "description": "配置 MCP 服务参数",
+      "handler": "main.sh config"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "mcpConfig": {
+    "defaultMode": "local",
+    "localCommand": ["npx", "-y", "@upstash/context7-mcp@latest"],
+    "remoteUrl": "https://mcp.context7.com/mcp",
+    "tools": [
+      "context7-get-library-docs",
+      "context7-search-docs",
+      "context7-get-code-examples"
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "name": "worker",
+  "version": "0.1.0",
+  "type": "subagent",
+  "description": "Subagent Worker for parallel task execution (Commander-Worker architecture)",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs", "python3", "git", "bash"],
+  "env": {
+    "OML_TASK_ID": {"required": false, "default": ""},
+    "OML_TASK_SCOPE": {"required": false, "default": "**"},
+    "OML_TASK_EXCLUDE": {"required": false, "default": ""}
+  },
+  "commands": [
+    {
+      "name": "spawn",
+      "description": "Spawn a new subagent task",
+      "handler": "main.sh spawn"
+    },
+    {
+      "name": "status",
+      "description": "Show task status",
+      "handler": "main.sh status"
+    },
+    {
+      "name": "logs",
+      "description": "Show task logs",
+      "handler": "main.sh logs"
+    },
+    {
+      "name": "cancel",
+      "description": "Cancel running task",
+      "handler": "main.sh cancel"
+    },
+    {
+      "name": "wait",
+      "description": "Wait for all tasks",
+      "handler": "main.sh wait"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "features": {
+    "scopeIsolation": true,
+    "parallelExecution": true,
+    "conflictDetection": true,
+    "backgroundTasks": true,
+    "taskRegistry": true
+  },
+  "fakeHome": {
+    "enabled": true,
+    "path": "~/.local/home/worker",
+    "taskIsolation": true
+  }
+}

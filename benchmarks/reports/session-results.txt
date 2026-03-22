@@ -1,0 +1,63 @@
+============================================
+OML Session Performance Benchmark
+============================================
+
+Configuration:
+  Sample Count:  20
+  Warmup Count:  3
+  Output Format: text
+  Test Dir:      /data/data/com.termux/files/usr/tmp/tmp.HbctPtMjXQ
+
+[INFO] Setting up test environment at: /data/data/com.termux/files/usr/tmp/tmp.HbctPtMjXQ
+[INFO] Running Session Create Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Session Create Benchmark ===
+  Samples:    20
+  Warmup:     3
+  Avg:        177.44160025000002 ms
+  Min:        159.78677 ms
+  Max:        197.562154 ms
+  P50:        175.435693 ms
+  P95:        197.562154 ms
+  P99:        197.562154 ms
+[INFO] Running Session Read Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Session Read Benchmark ===
+  Samples:    20
+  Avg:        42.02595 ms
+  Min:        35.791692 ms
+  Max:        47.762231 ms
+  P50:        41.484846 ms
+  P95:        47.762231 ms
+  P99:        47.762231 ms
+[INFO] Running Session Write Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Session Write Benchmark ===
+  Samples:    20
+  Avg:        194.38584605 ms
+  Min:        179.195769 ms
+  Max:        210.809538 ms
+  P50:        195.842769 ms
+  P95:        210.809538 ms
+  P99:        210.809538 ms
+[INFO] Running Session Delete Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...
+
+=== Session Delete Benchmark ===
+  Samples:    20
+  Avg:        80.59218079999998 ms
+  Min:        74.099077 ms
+  Max:        89.075923 ms
+  P50:        80.533462 ms
+  P95:        89.075923 ms
+  P99:        89.075923 ms
+[INFO] Running Session Messages Benchmark (20 iterations)...
+[INFO]   Warmup: 3 iterations...
+[INFO]   Running benchmark...

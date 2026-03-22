@@ -1,0 +1,13 @@
+============================================
+OML Hooks Performance Benchmark
+============================================
+
+Configuration:
+  Sample Count:  20
+  Warmup Count:  3
+  Hook Count:    2
+  Output Format: text
+  Test Dir:      /data/data/com.termux/files/usr/tmp/tmp.6m0O3F3Emq
+
+[INFO] Setting up test environment at: /data/data/com.termux/files/usr/tmp/tmp.6m0O3F3Emq
+[INFO] Running Single Hook Latency Benchmark (20 iterations)...

@@ -5,6 +5,7 @@
 | Abbrev | Full Name | Description |
 |--------|-----------|-------------|
 | OML | Oh-My-Litecode | Main orchestrator project |
+| OMT | oml-tools | External tools contract + MCP gateway |
 | OCT | OpenCode(-on)-Termux | OpenCode builds for Termux |
 | OMG | omgemini | Gemini CLI integration (future) |
 | OMF | omforge | ForgeCode integration (future) |

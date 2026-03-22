@@ -1,0 +1,491 @@
+#!/usr/bin/env bash
+# Librarian Subagent - Knowledge Compilation
+# Compiles search results into structured knowledge documents
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source utilities
+source "${SCRIPT_DIR}/utils.sh"
+
+# Compile knowledge from search results
+# Usage: compile_knowledge "results_json" "topic" [options_json]
+compile_knowledge() {
+    local results="$1"
+    local topic="${2:-Unknown Topic}"
+    local options="${3:-{}}"
+
+    librarian_info "Compiling knowledge: $topic"
+
+    local format
+    format=$(echo "$options" | jq -r '.format // "markdown"')
+
+    local include_citations="True"
+    local include_summary="True"
+    
+    local raw_include_citations
+    raw_include_citations=$(echo "$options" | jq -r '.includeCitations // true' 2>/dev/null || echo "true")
+    if [[ "$raw_include_citations" == "false" ]]; then
+        include_citations="False"
+    fi
+    
+    local raw_include_summary
+    raw_include_summary=$(echo "$options" | jq -r '.includeSummary // true' 2>/dev/null || echo "true")
+    if [[ "$raw_include_summary" == "false" ]]; then
+        include_summary="False"
+    fi
+
+    # Extract and organize content using Python
+    local compiled
+    compiled=$(python3 - "$results" "$topic" "$format" "$include_citations" "$include_summary" <<'PYTHON'
+import json
+import sys
+from datetime import datetime
+
+results_str = sys.argv[1] if len(sys.argv) > 1 else "[]"
+topic = sys.argv[2] if len(sys.argv) > 2 else "Unknown Topic"
+format_type = sys.argv[3] if len(sys.argv) > 3 else "markdown"
+include_citations = sys.argv[4] == "True" if len(sys.argv) > 4 else True
+include_summary = sys.argv[5] == "True" if len(sys.argv) > 5 else True
+
+# Parse results
+try:
+    results = json.loads(results_str) if results_str and results_str != "[]" else []
+except json.JSONDecodeError:
+    results = []
+
+# Handle both array and object with results key
+if isinstance(results, dict):
+    results = results.get('results', results.get('_metadata', {}).get('items', []))
+
+# Group by source
+by_source = {}
+for item in results:
+    source = item.get('source', 'unknown')
+    if source not in by_source:
+        by_source[source] = []
+    by_source[source].append(item)
+
+# Generate compiled document
+output = []
+
+if format_type == 'markdown':
+    output.append(f"# Knowledge Compilation: {topic}")
+    output.append("")
+    output.append(f"**Generated**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    output.append(f"**Sources**: {len(by_source)} | **Items**: {len(results)}")
+    output.append("")
+
+    if include_summary:
+        output.append("## Summary")
+        output.append("")
+        key_points = []
+        for item in results[:5]:
+            content = item.get('content') or item.get('text') or item.get('snippet') or ''
+            if content:
+                first_sentence = content.split('.')[0].strip()
+                if len(first_sentence) > 20:
+                    key_points.append(first_sentence)
+        for i, point in enumerate(key_points[:5], 1):
+            output.append(f"{i}. {point}")
+        output.append("")
+
+    output.append("## Detailed Content")
+    output.append("")
+
+    for source, items in sorted(by_source.items()):
+        output.append(f"### {source.title()} Sources")
+        output.append("")
+        for i, item in enumerate(items, 1):
+            title = item.get('title', 'Untitled')
+            content = item.get('content') or item.get('text') or item.get('snippet') or 'No content available'
+            url = item.get('url') or item.get('link', '#')
+            score = item.get('score', 'N/A')
+            package = item.get('package')
+
+            output.append(f"#### {i}. {title}")
+            output.append("")
+            if package:
+                output.append(f"**Package**: `{package}`")
+                output.append("")
+            output.append(f"**Relevance**: {score}")
+            output.append("")
+            output.append("```")
+            if len(str(content)) > 2000:
+                content = str(content)[:2000] + "... [truncated]"
+            output.append(str(content))
+            output.append("```")
+            output.append("")
+            if include_citations and url:
+                output.append(f"**Source**: [{url}]({url})")
+                output.append("")
+            output.append("---")
+            output.append("")
+
+    if include_citations:
+        output.append("## References")
+        output.append("")
+        seen_urls = set()
+        for i, item in enumerate(results, 1):
+            url = item.get('url') or item.get('link', '#')
+            title = item.get('title', 'Untitled')
+            source = item.get('source', 'unknown')
+            if url not in seen_urls:
+                seen_urls.add(url)
+                output.append(f"{i}. **{title}** - {source}")
+                output.append(f"   - URL: {url}")
+                output.append("")
+
+    output.append("---")
+    output.append("")
+    output.append("*Generated by OML Librarian Subagent*")
+
+elif format_type == 'json':
+    output_dict = {
+        "topic": topic,
+        "generated_at": datetime.now().isoformat(),
+        "summary": {
+            "total_sources": len(by_source),
+            "total_items": len(results),
+            "sources": list(by_source.keys())
+        },
+        "content": by_source,
+        "citations": [
+            {
+                "title": item.get('title', 'Untitled'),
+                "url": item.get('url') or item.get('link', '#'),
+                "source": item.get('source', 'unknown'),
+                "package": item.get('package')
+            }
+            for item in results
+        ] if include_citations else []
+    }
+    output.append(json.dumps(output_dict, indent=2, ensure_ascii=False))
+
+else:
+    output.append(f"Knowledge Compilation: {topic}")
+    output.append("=" * 50)
+    output.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    output.append(f"Sources: {len(by_source)} | Items: {len(results)}")
+    output.append("")
+    for source, items in sorted(by_source.items()):
+        output.append(f"\n[{source.upper()}]")
+        for item in items:
+            title = item.get('title', 'Untitled')
+            content = str(item.get('content') or item.get('text') or item.get('snippet', ''))[:200]
+            output.append(f"  - {title}")
+            output.append(f"    {content}...")
+    output.append("")
+    output.append("---")
+    output.append("Generated by OML Librarian Subagent")
+
+print("\n".join(output))
+PYTHON
+)
+
+    echo "$compiled"
+}
+
+# Create structured knowledge base entry
+# Usage: compile_create_entry "topic" "content_json" "tags_json"
+compile_create_entry() {
+    local topic="$1"
+    local content="$2"
+    local tags="${3:-[]}"
+
+    local entry_id
+    entry_id=$(librarian_generate_id)
+
+    local entry_dir
+    entry_dir="$(librarian_get_config_dir)/knowledge"
+    mkdir -p "$entry_dir"
+
+    local entry_file="${entry_dir}/${entry_id}.json"
+
+    cat > "$entry_file" <<EOF
+{
+    "id": "$(librarian_json_escape "$entry_id")",
+    "topic": "$(librarian_json_escape "$topic")",
+    "content": $content,
+    "tags": $tags,
+    "created_at": "$(librarian_timestamp)",
+    "updated_at": "$(librarian_timestamp)",
+    "version": 1,
+    "sources": [],
+    "metadata": {
+        "compiler": "librarian",
+        "platform": "$(librarian_get_platform)"
+    }
+}
+EOF
+
+    librarian_success "Created knowledge entry: $entry_id"
+    echo "$entry_id"
+}
+
+# Update existing knowledge entry
+# Usage: compile_update_entry "entry_id" "content_json"
+compile_update_entry() {
+    local entry_id="$1"
+    local content="$2"
+
+    local entry_dir
+    entry_dir="$(librarian_get_config_dir)/knowledge"
+
+    local entry_file="${entry_dir}/${entry_id}.json"
+
+    if [[ ! -f "$entry_file" ]]; then
+        librarian_error "Entry not found: $entry_id"
+        return 1
+    fi
+
+    local updated
+    updated=$(jq --argjson content "$content" --arg ts "$(librarian_timestamp)" '
+        .content = $content |
+        .updated_at = $ts |
+        .version = (.version + 1)
+    ' "$entry_file")
+
+    echo "$updated" > "$entry_file"
+
+    librarian_success "Updated entry: $entry_id (v$(echo "$updated" | jq -r '.version'))"
+}
+
+# Search knowledge base
+# Usage: compile_search_knowledge "query" [tags]
+compile_search_knowledge() {
+    local query="$1"
+    local tags="${2:-}"
+
+    local entry_dir
+    entry_dir="$(librarian_get_config_dir)/knowledge"
+
+    if [[ ! -d "$entry_dir" ]]; then
+        echo "[]"
+        return 0
+    fi
+
+    python3 - "$entry_dir" "$query" "$tags" <<'PYTHON'
+import json
+import os
+import glob
+import sys
+
+entry_dir = sys.argv[1] if len(sys.argv) > 1 else ""
+query = sys.argv[2].lower() if len(sys.argv) > 2 else ""
+tags_filter = sys.argv[3].split(',') if len(sys.argv) > 3 and sys.argv[3] else []
+
+results = []
+
+for entry_file in glob.glob(os.path.join(entry_dir, "*.json")):
+    try:
+        with open(entry_file, 'r') as f:
+            entry = json.load(f)
+        
+        topic = entry.get('topic', '').lower()
+        content_str = json.dumps(entry.get('content', {})).lower()
+        
+        query_match = query in topic or query in content_str
+        
+        tags_match = True
+        if tags_filter:
+            entry_tags = [t.lower() for t in entry.get('tags', [])]
+            tags_match = any(t in entry_tags for t in tags_filter)
+        
+        if query_match or tags_match:
+            results.append({
+                "id": entry.get("id"),
+                "topic": entry.get("topic"),
+                "tags": entry.get("tags"),
+                "created_at": entry.get("created_at"),
+                "relevance": 1.0 if query in topic else 0.5
+            })
+    except Exception:
+        pass
+
+results.sort(key=lambda x: -x.get('relevance', 0))
+print(json.dumps(results, indent=2))
+PYTHON
+}
+
+# Export knowledge base
+# Usage: compile_export [format] [output_file]
+compile_export() {
+    local format="${1:-markdown}"
+    local output_file="${2:-}"
+
+    local entry_dir
+    entry_dir="$(librarian_get_config_dir)/knowledge"
+
+    if [[ ! -d "$entry_dir" ]]; then
+        librarian_error "Knowledge base is empty"
+        return 1
+    fi
+
+    local exported
+    exported=$(python3 - "$entry_dir" "$format" <<'PYTHON'
+import json
+import os
+import glob
+import sys
+from datetime import datetime
+
+entry_dir = sys.argv[1] if len(sys.argv) > 1 else ""
+format_type = sys.argv[2] if len(sys.argv) > 2 else "markdown"
+
+entries = []
+for entry_file in sorted(glob.glob(os.path.join(entry_dir, "*.json"))):
+    try:
+        with open(entry_file, 'r') as f:
+            entries.append(json.load(f))
+    except Exception:
+        pass
+
+if format_type == 'markdown':
+    output = ["# OML Librarian Knowledge Base", ""]
+    output.append(f"*Exported: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+    output.append("")
+    output.append(f"**Total Entries**: {len(entries)}")
+    output.append("")
+    output.append("---")
+    output.append("")
+    
+    for entry in entries:
+        output.append(f"## {entry.get('topic', 'Untitled')}")
+        output.append("")
+        output.append(f"**ID**: {entry.get('id')}")
+        output.append(f"**Tags**: {', '.join(entry.get('tags', []))}")
+        output.append(f"**Created**: {entry.get('created_at')}")
+        output.append("")
+        
+        content = entry.get('content', {})
+        if isinstance(content, dict):
+            for key, value in content.items():
+                output.append(f"### {key}")
+                output.append("")
+                output.append(str(value))
+                output.append("")
+        
+        output.append("---")
+        output.append("")
+    
+    print("\n".join(output))
+
+elif format_type == 'json':
+    print(json.dumps({"entries": entries, "exported_at": datetime.now().isoformat()}, indent=2))
+
+else:
+    print(json.dumps(entries, indent=2))
+PYTHON
+)
+
+    if [[ -n "$output_file" ]]; then
+        echo "$exported" > "$output_file"
+        librarian_success "Exported to: $output_file"
+    else
+        echo "$exported"
+    fi
+}
+
+# Import knowledge entries
+# Usage: compile_import "input_file"
+compile_import() {
+    local input_file="$1"
+
+    if [[ ! -f "$input_file" ]]; then
+        librarian_error "File not found: $input_file"
+        return 1
+    fi
+
+    local entry_dir
+    entry_dir="$(librarian_get_config_dir)/knowledge"
+    mkdir -p "$entry_dir"
+
+    local count=0
+    local content
+    content=$(cat "$input_file")
+
+    if echo "$content" | jq -e '.entries' >/dev/null 2>&1; then
+        local entries
+        entries=$(echo "$content" | jq -c '.entries[]')
+
+        while IFS= read -r entry; do
+            local entry_id
+            entry_id=$(echo "$entry" | jq -r '.id')
+            local entry_file="${entry_dir}/${entry_id}.json"
+
+            echo "$entry" > "$entry_file"
+            ((count++))
+        done <<< "$entries"
+    else
+        local entry_id
+        entry_id=$(echo "$content" | jq -r '.id')
+
+        if [[ -n "$entry_id" && "$entry_id" != "null" ]]; then
+            local entry_file="${entry_dir}/${entry_id}.json"
+            echo "$content" > "$entry_file"
+            ((count++))
+        fi
+    fi
+
+    librarian_success "Imported $count entries"
+    echo "$count"
+}
+
+# Delete knowledge entry
+# Usage: compile_delete_entry "entry_id"
+compile_delete_entry() {
+    local entry_id="$1"
+
+    local entry_dir
+    entry_dir="$(librarian_get_config_dir)/knowledge"
+
+    local entry_file="${entry_dir}/${entry_id}.json"
+
+    if [[ ! -f "$entry_file" ]]; then
+        librarian_error "Entry not found: $entry_id"
+        return 1
+    fi
+
+    rm -f "$entry_file"
+    librarian_success "Deleted entry: $entry_id"
+}
+
+# List all knowledge entries
+# Usage: compile_list
+compile_list() {
+    local entry_dir
+    entry_dir="$(librarian_get_config_dir)/knowledge"
+
+    if [[ ! -d "$entry_dir" ]]; then
+        echo "[]"
+        return 0
+    fi
+
+    python3 - "$entry_dir" <<'PYTHON'
+import json
+import os
+import glob
+import sys
+
+entry_dir = sys.argv[1] if len(sys.argv) > 1 else ""
+
+entries = []
+for entry_file in sorted(glob.glob(os.path.join(entry_dir, "*.json"))):
+    try:
+        with open(entry_file, 'r') as f:
+            entry = json.load(f)
+        entries.append({
+            "id": entry.get("id"),
+            "topic": entry.get("topic"),
+            "tags": entry.get("tags"),
+            "created_at": entry.get("created_at"),
+            "version": entry.get("version")
+        })
+    except Exception:
+        pass
+
+print(json.dumps(entries, indent=2))
+PYTHON
+}

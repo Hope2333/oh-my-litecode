@@ -1,0 +1,79 @@
+{
+  "name": "librarian",
+  "version": "0.1.0",
+  "type": "subagent",
+  "description": "Librarian Subagent for documentation search, Context7 queries, web search, and knowledge compilation",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3", "curl", "jq"],
+  "env": {
+    "OML_LIBRARIAN_OUTPUT_FORMAT": {"required": false, "default": "markdown"},
+    "OML_LIBRARIAN_MAX_RESULTS": {"required": false, "default": "10"},
+    "OML_LIBRARIAN_CONTEXT7_ENABLED": {"required": false, "default": "true"},
+    "OML_LIBRARIAN_WEBSEARCH_ENABLED": {"required": false, "default": "true"},
+    "CONTEXT7_API_KEY": {"required": false, "default": ""},
+    "EXA_API_KEY": {"required": false, "default": ""}
+  },
+  "commands": [
+    {
+      "name": "search",
+      "description": "Search documentation (Context7 + local)",
+      "handler": "main.sh search"
+    },
+    {
+      "name": "query",
+      "description": "Query Context7 MCP for library documentation",
+      "handler": "main.sh query"
+    },
+    {
+      "name": "websearch",
+      "description": "Web search using Exa MCP",
+      "handler": "main.sh websearch"
+    },
+    {
+      "name": "compile",
+      "description": "Compile knowledge from multiple sources",
+      "handler": "main.sh compile"
+    },
+    {
+      "name": "sources",
+      "description": "List and manage citation sources",
+      "handler": "main.sh sources"
+    },
+    {
+      "name": "cache",
+      "description": "Manage search cache",
+      "handler": "main.sh cache"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "features": {
+    "context7Integration": true,
+    "webSearchIntegration": true,
+    "resultDeduplication": true,
+    "citationTracking": true,
+    "knowledgeCompilation": true,
+    "cacheManagement": true,
+    "multiSourceSearch": true
+  },
+  "mcpServers": {
+    "context7": {
+      "tools": ["resolve-library-id", "query-docs"],
+      "enabled": true
+    },
+    "websearch": {
+      "tools": ["web_search_exa", "get_code_context_exa"],
+      "enabled": true
+    }
+  },
+  "outputFormats": ["json", "markdown", "text"],
+  "cacheConfig": {
+    "enabled": true,
+    "ttl": 3600,
+    "maxSize": 1000
+  }
+}

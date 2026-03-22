@@ -1,0 +1,52 @@
+{
+  "name": "hooks-runtime",
+  "version": "0.1.0",
+  "type": "core",
+  "description": "OML Hooks 运行时插件 - 提供 Hooks 引擎的完整运行时支持",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash>=4.0", "python3"],
+  "env": {
+    "OML_HOOKS_ENABLED": {"required": false, "default": "true"},
+    "OML_HOOKS_TIMEOUT": {"required": false, "default": "30"},
+    "OML_HOOKS_LOG_LEVEL": {"required": false, "default": "info"}
+  },
+  "commands": [
+    {
+      "name": "init",
+      "description": "初始化 Hooks 运行时",
+      "handler": "main.sh init"
+    },
+    {
+      "name": "list",
+      "description": "列出已注册的 Hooks",
+      "handler": "main.sh list"
+    },
+    {
+      "name": "trigger",
+      "description": "触发 Hook 事件",
+      "handler": "main.sh trigger"
+    },
+    {
+      "name": "register",
+      "description": "注册新 Hook",
+      "handler": "main.sh register"
+    },
+    {
+      "name": "status",
+      "description": "显示运行时状态",
+      "handler": "main.sh status"
+    }
+  ],
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "exports": {
+    "event_bus": "lib/event-bus-exports.sh",
+    "registry": "lib/registry-exports.sh",
+    "dispatcher": "lib/dispatcher-exports.sh",
+    "engine": "lib/engine-exports.sh"
+  }
+}
