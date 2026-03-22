@@ -1,0 +1,63 @@
+{
+  "name": "oh-my-litecode",
+  "version": "0.2.0-alpha",
+  "description": "Unified Toolchain Manager for AI-Assisted Development",
+  "type": "module",
+  "bin": {
+    "oml": "./bin/oml.js"
+  },
+  "scripts": {
+    "dev": "tsx src/cli/index.ts",
+    "build": "tsc && cp src/cli/index.ts bin/oml.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cli",
+    "toolchain",
+    "ai",
+    "termux",
+    "opencode",
+    "qwen"
+  ],
+  "author": "OML Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hope2333/oh-my-litecode.git"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "bun": ">=1.0.0"
+  },
+  "os": [
+    "linux",
+    "android"
+  ],
+  "cpu": [
+    "x64",
+    "arm64",
+    "arm"
+  ],
+  "dependencies": {
+    "commander": "^12.0.0",
+    "picocolors": "^1.0.0",
+    "execa": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.55.0",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  },
+  "optionalDependencies": {
+    "bun-types": "^1.0.0"
+  }
+}

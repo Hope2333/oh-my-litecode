@@ -1,34 +1,22 @@
-# Build artifacts
+# TypeScript build
 dist/
-.build/
-.tmp/
-*.pkg.tar.*
-*.deb
+bin/oml.js
+bin/oml.js.map
+bin/*.d.ts
 
-# Runtime files
+# Dependencies
+node_modules/
+
+# Test
+coverage/
 *.log
-
-# Editor
-*.swp
-*.swo
-*~
-.vscode/
-.idea/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Secrets
-.env
-*.key
-*.pem
-credentials.json
-
-# Node (if any)
-node_modules/
-
-# Python
-__pycache__/
-*.pyc
-.venv/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
