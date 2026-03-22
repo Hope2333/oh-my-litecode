@@ -1,24 +1,76 @@
 #!/usr/bin/env bash
 # OML Platform Detection and Adaptation Layer
-# Supports: Termux (Android) and GNU/Linux
+# Supports: Termux (Android) and GNU/Linux (Arch, Debian, Ubuntu, Fedora, RHEL, openSUSE, etc.)
 
 set -euo pipefail
 
 OML_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Platform detection
+# Platform detection - Enhanced for multi-distro support
 oml_platform_detect() {
+    # Termux (Android) - highest priority
     if [[ -d "/data/data/com.termux/files/usr" ]]; then
         echo "termux"
+        return
+    fi
+
+    # Check release files for specific distros
+    if [[ -f "/etc/arch-release" ]]; then
+        echo "arch"
+        return
+    elif [[ -f "/etc/manjaro-release" ]]; then
+        echo "manjaro"
+        return
+    elif [[ -f "/etc/endeavouros-release" ]]; then
+        echo "endeavouros"
+        return
     elif [[ -f "/etc/debian_version" ]]; then
         echo "debian"
-    elif [[ -f "/etc/arch-release" ]]; then
-        echo "arch"
+        return
+    elif [[ -f "/etc/ubuntu-release" ]]; then
+        echo "ubuntu"
+        return
+    elif [[ -f "/etc/linuxmint-release" ]]; then
+        echo "linuxmint"
+        return
+    elif [[ -f "/etc/fedora-release" ]]; then
+        echo "fedora"
+        return
     elif [[ -f "/etc/redhat-release" ]]; then
         echo "rhel"
-    else
-        echo "gnu-linux"
+        return
+    elif [[ -f "/etc/centos-release" ]]; then
+        echo "centos"
+        return
+    elif [[ -f "/etc/SuSE-release" ]] || [[ -f "/etc/opensuse-release" ]]; then
+        echo "opensuse"
+        return
     fi
+
+    # Fallback to os-release for modern systems
+    if [[ -f "/etc/os-release" ]]; then
+        # shellcheck disable=SC1091
+        source "/etc/os-release"
+        case "$ID" in
+            arch) echo "arch" ;;
+            manjaro) echo "manjaro" ;;
+            endeavouros) echo "endeavouros" ;;
+            debian) echo "debian" ;;
+            ubuntu) echo "ubuntu" ;;
+            linuxmint|mint) echo "linuxmint" ;;
+            pop) echo "pop" ;;
+            fedora) echo "fedora" ;;
+            rhel) echo "rhel" ;;
+            centos) echo "centos" ;;
+            opensuse-leap|opensuse-tumbleweed|opensuse) echo "opensuse" ;;
+            alpine) echo "alpine" ;;
+            *) echo "gnu-linux" ;;
+        esac
+        return
+    fi
+
+    # Ultimate fallback
+    echo "gnu-linux"
 }
 
 # Get platform label (short)
@@ -37,9 +89,11 @@ oml_platform_family() {
     platform="$(oml_platform_detect)"
     case "$platform" in
         termux) echo "termux" ;;
-        debian|ubuntu|mint) echo "debian" ;;
-        arch|manjaro) echo "arch" ;;
-        rhel|centos|fedora) echo "rhel" ;;
+        debian|ubuntu|linuxmint|pop) echo "debian" ;;
+        arch|manjaro|endeavouros) echo "arch" ;;
+        fedora|rhel|centos) echo "rhel" ;;
+        opensuse*) echo "opensuse" ;;
+        alpine) echo "alpine" ;;
         *) echo "gnu-linux" ;;
     esac
 }
@@ -48,30 +102,54 @@ oml_platform_family() {
 oml_pkgmgr_detect() {
     local platform
     platform="$(oml_platform_detect)"
-    
+
     case "$platform" in
         termux)
             if command -v pacman >/dev/null 2>&1; then
                 echo "pacman"
             else
-                echo "dpkg"
+                echo "pkg"
             fi
             ;;
-        debian|ubuntu|mint)
+        debian|ubuntu|linuxmint|pop)
             echo "apt"
             ;;
-        arch|manjaro)
+        arch|manjaro|endeavouros)
             echo "pacman"
             ;;
-        rhel|centos|fedora)
+        fedora)
+            echo "dnf"
+            ;;
+        rhel|centos)
             if command -v dnf >/dev/null 2>&1; then
                 echo "dnf"
             else
                 echo "yum"
             fi
             ;;
+        opensuse*)
+            echo "zypper"
+            ;;
+        alpine)
+            echo "apk"
+            ;;
         *)
-            echo "unknown"
+            # Try to detect available package manager
+            if command -v apt >/dev/null 2>&1; then
+                echo "apt"
+            elif command -v dnf >/dev/null 2>&1; then
+                echo "dnf"
+            elif command -v yum >/dev/null 2>&1; then
+                echo "yum"
+            elif command -v pacman >/dev/null 2>&1; then
+                echo "pacman"
+            elif command -v zypper >/dev/null 2>&1; then
+                echo "zypper"
+            elif command -v apk >/dev/null 2>&1; then
+                echo "apk"
+            else
+                echo "unknown"
+            fi
             ;;
     esac
 }
@@ -240,7 +318,7 @@ oml_install_deps() {
     local deps=("$@")
     local pkgmgr
     pkgmgr="$(oml_pkgmgr_detect)"
-    
+
     case "$pkgmgr" in
         apt)
             sudo apt install -y "${deps[@]}"
@@ -254,11 +332,18 @@ oml_install_deps() {
         yum)
             sudo yum install -y "${deps[@]}"
             ;;
-        dpkg)
+        zypper)
+            sudo zypper install -y "${deps[@]}"
+            ;;
+        apk)
+            sudo apk add --no-cache "${deps[@]}"
+            ;;
+        pkg)
             pkg install -y "${deps[@]}"
             ;;
         *)
             echo "Error: Unsupported package manager: $pkgmgr" >&2
+            echo "Please install manually: ${deps[*]}" >&2
             return 1
             ;;
     esac

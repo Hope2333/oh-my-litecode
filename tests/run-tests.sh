@@ -84,11 +84,29 @@ echo -e "${BLUE}OML Test Suite${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo ""
 
+# Detect platform for test expectations
+CURRENT_PLATFORM=$(source "$OML_ROOT/core/platform.sh" && oml_platform_detect)
+echo -e "${BLUE}Current Platform: ${CURRENT_PLATFORM}${NC}"
+echo ""
+
 # Platform tests
 echo -e "${YELLOW}[Platform Tests]${NC}"
 
 run_test "Platform detect" "$OML platform detect" 0
-run_test_contains "Platform detect output" "$OML platform detect" "termux"
+
+# Platform-specific expectations
+if [[ "$CURRENT_PLATFORM" == "termux" ]]; then
+    run_test_contains "Platform detect output (termux)" "$OML platform detect" "termux"
+elif [[ "$CURRENT_PLATFORM" == "arch" ]] || [[ "$CURRENT_PLATFORM" == "manjaro" ]] || [[ "$CURRENT_PLATFORM" == "endeavouros" ]]; then
+    run_test_contains "Platform detect output (arch)" "$OML platform detect" "arch"
+elif [[ "$CURRENT_PLATFORM" == "debian" ]] || [[ "$CURRENT_PLATFORM" == "ubuntu" ]]; then
+    run_test_contains "Platform detect output (debian)" "$OML platform detect" "debian"
+elif [[ "$CURRENT_PLATFORM" == "fedora" ]]; then
+    run_test_contains "Platform detect output (fedora)" "$OML platform detect" "fedora"
+else
+    run_test_contains "Platform detect output (gnu-linux)" "$OML platform detect" "gnu-linux"
+fi
+
 run_test "Platform info" "$OML platform info" 0
 run_test "Platform doctor" "$OML platform doctor" 0
 
@@ -131,7 +149,19 @@ run_test "MCPs help" "$OML mcps help" 0
 echo ""
 echo -e "${YELLOW}[Core Function Tests]${NC}"
 
-run_test_contains "Source platform.sh" "source $OML_ROOT/core/platform.sh && oml_platform_detect" "termux"
+# Platform-specific test for platform.sh
+if [[ "$CURRENT_PLATFORM" == "termux" ]]; then
+    run_test_contains "Source platform.sh (termux)" "source $OML_ROOT/core/platform.sh && oml_platform_detect" "termux"
+elif [[ "$CURRENT_PLATFORM" == "arch" ]] || [[ "$CURRENT_PLATFORM" == "manjaro" ]] || [[ "$CURRENT_PLATFORM" == "endeavouros" ]]; then
+    run_test_contains "Source platform.sh (arch)" "source $OML_ROOT/core/platform.sh && oml_platform_detect" "arch"
+elif [[ "$CURRENT_PLATFORM" == "debian" ]] || [[ "$CURRENT_PLATFORM" == "ubuntu" ]]; then
+    run_test_contains "Source platform.sh (debian)" "source $OML_ROOT/core/platform.sh && oml_platform_detect" "debian"
+elif [[ "$CURRENT_PLATFORM" == "fedora" ]]; then
+    run_test_contains "Source platform.sh (fedora)" "source $OML_ROOT/core/platform.sh && oml_platform_detect" "fedora"
+else
+    run_test_contains "Source platform.sh (gnu-linux)" "source $OML_ROOT/core/platform.sh && oml_platform_detect" "gnu-linux"
+fi
+
 run_test_contains "Source plugin-loader.sh" "source $OML_ROOT/core/plugin-loader.sh && oml_plugins_list" "qwen"
 run_test_contains "Source task-registry.sh" "source $OML_ROOT/core/task-registry.sh && oml_task_generate_id" "task-"
 
