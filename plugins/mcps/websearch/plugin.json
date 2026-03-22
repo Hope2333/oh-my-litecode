@@ -1,0 +1,87 @@
+{
+  "name": "websearch",
+  "version": "1.0.0",
+  "type": "mcp",
+  "description": "Web Search MCP service using Exa AI - Provides web search and code context retrieval",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3", "curl", "jq", "nodejs"],
+  "env": {
+    "EXA_API_KEY": {
+      "required": false,
+      "default": "",
+      "description": "Exa API key for web search"
+    },
+    "EXA_BASE_URL": {
+      "required": false,
+      "default": "https://api.exa.ai",
+      "description": "Exa API base URL"
+    },
+    "EXA_TIMEOUT": {
+      "required": false,
+      "default": "30",
+      "description": "Request timeout in seconds"
+    }
+  },
+  "commands": [
+    {
+      "name": "search",
+      "description": "Search the web using Exa AI",
+      "handler": "main.sh search"
+    },
+    {
+      "name": "code-context",
+      "description": "Get code context from GitHub/StackOverflow",
+      "handler": "main.sh code-context"
+    },
+    {
+      "name": "sources",
+      "description": "List search sources and citations",
+      "handler": "main.sh sources"
+    },
+    {
+      "name": "config",
+      "description": "Manage WebSearch configuration",
+      "handler": "main.sh config"
+    }
+  ],
+  "mcpConfig": {
+    "defaultMode": "remote",
+    "remoteUrl": "https://mcp.exa.ai/mcp?tools=web_search_exa,get_code_context_exa",
+    "tools": [
+      "web_search_exa",
+      "get_code_context_exa",
+      "web_search_advanced_exa",
+      "crawling_exa"
+    ],
+    "envMapping": {
+      "EXA_API_KEY": "x-api-key"
+    }
+  },
+  "hooks": {
+    "post_install": "scripts/post-install.sh",
+    "pre_uninstall": "scripts/pre-uninstall.sh"
+  },
+  "features": {
+    "webSearch": {
+      "enabled": true,
+      "provider": "Exa AI",
+      "features": [
+        "web_search_exa",
+        "web_search_advanced_exa",
+        "get_code_context_exa",
+        "crawling_exa"
+      ]
+    },
+    "cache": {
+      "enabled": true,
+      "ttl": 3600,
+      "maxSize": 1000
+    },
+    "citationTracking": {
+      "enabled": true,
+      "format": ["markdown", "json", "bibtex"]
+    }
+  }
+}
