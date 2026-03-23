@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
-# Qwen OAuth Switcher - Multi-account credential manager
+# Qwen OAuth Switcher - Manage multiple free accounts via config file switching
+#
+# Principle:
+#   Store multiple OAuth config files, switch by copying to Qwen config directory
+#
+# Storage: ~/.oml/qwen-oauth/
+#   - accounts/<name>/settings.json  # OAuth config for each account
+#   - current                        # Current active account name
+#   - backups/<timestamp>/           # Config backups
 #
 # Usage:
 #   qwen-oauth list              # List all accounts
-#   qwen-oauth add <name>        # Add new account
-#   qwen-oauth switch <name>     # Switch to account
+#   qwen-oauth add <name>        # Add new account (login to get config)
+#   qwen-oauth use <name>        # Switch to account
 #   qwen-oauth current           # Show current account
 #   qwen-oauth remove <name>     # Remove account
-#   qwen-oauth refresh           # Refresh current token
-#   qwen-oauth stats             # Show usage statistics
-#   qwen-oauth health            # Health check
+#   qwen-oauth rotate            # Rotate to next account
+#   qwen-oauth backup            # Backup current config
+#   qwen-oauth restore <backup>  # Restore from backup
 
 set -euo pipefail
 
@@ -18,9 +26,10 @@ PLUGIN_NAME="qwen-oauth-switcher"
 
 # Configuration
 QWEN_OAUTH_DIR="${QWEN_OAUTH_DIR:-${HOME}/.oml/qwen-oauth}"
-CREDENTIALS_FILE="${QWEN_OAUTH_DIR}/credentials.json"
-CURRENT_ACCOUNT_FILE="${QWEN_OAUTH_DIR}/current_account"
-STATS_FILE="${QWEN_OAUTH_DIR}/stats.json"
+QWEN_CONFIG_DIR="${QWEN_CONFIG_DIR:-${HOME}/.local/home/qwenx/.qwen}"
+ACCOUNTS_DIR="${QWEN_OAUTH_DIR}/accounts"
+CURRENT_FILE="${QWEN_OAUTH_DIR}/current"
+BACKUPS_DIR="${QWEN_OAUTH_DIR}/backups"
 
 # Colors
 RED='\033[0;31m'
@@ -29,42 +38,29 @@ YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Initialize storage directory
+# Initialize storage
 init_storage() {
-    mkdir -p "${QWEN_OAUTH_DIR}"
+    mkdir -p "${ACCOUNTS_DIR}"
+    mkdir -p "${BACKUPS_DIR}"
     chmod 700 "${QWEN_OAUTH_DIR}"
-    
-    if [[ ! -f "${CREDENTIALS_FILE}" ]]; then
-        echo '{}' > "${CREDENTIALS_FILE}"
-        chmod 600 "${CREDENTIALS_FILE}"
-    fi
-    
-    if [[ ! -f "${STATS_FILE}" ]]; then
-        echo '{"total_requests": 0, "accounts": {}}' > "${STATS_FILE}"
-        chmod 600 "${STATS_FILE}"
-    fi
+    chmod 700 "${ACCOUNTS_DIR}"
+    chmod 700 "${BACKUPS_DIR}"
 }
 
-# Encode credentials (Base64)
-encode_credentials() {
-    local data="$1"
-    echo -n "$data" | base64 -w 0
+# Get account count
+get_account_count() {
+    find "${ACCOUNTS_DIR}" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l
 }
 
-# Decode credentials
-decode_credentials() {
-    local encoded="$1"
-    echo -n "$encoded" | base64 -d
+# Check if account exists
+account_exists() {
+    local name="$1"
+    [[ -d "${ACCOUNTS_DIR}/${name}" ]]
 }
 
-# Mask API key for display
-mask_key() {
-    local key="$1"
-    if [[ ${#key} -le 10 ]]; then
-        echo "***"
-    else
-        echo "${key:0:6}...${key: -4}"
-    fi
+# Get current account
+get_current_account() {
+    cat "${CURRENT_FILE}" 2>/dev/null || echo ""
 }
 
 # Add new account
@@ -77,72 +73,115 @@ cmd_add() {
         return 1
     fi
     
-    echo -e "${BLUE}Adding new account: ${name}${NC}"
+    if account_exists "$name"; then
+        echo -e "${RED}Error: Account '${name}' already exists${NC}"
+        return 1
+    fi
+    
+    echo -e "${BLUE}Adding new OAuth account: ${name}${NC}"
+    echo ""
+    echo "Instructions:"
+    echo "1. Login to Qwen Code with this account in a browser"
+    echo "2. Copy the config file from ~/.local/home/qwenx/.qwen/settings.json"
+    echo "3. Paste it below (Ctrl+D to finish):"
     echo ""
     
-    # Get credentials
-    read -p "Enter Qwen API Key: " -s api_key
+    # Create account directory
+    mkdir -p "${ACCOUNTS_DIR}/${name}"
+    
+    # Read config from stdin
+    local config_file="${ACCOUNTS_DIR}/${name}/settings.json"
+    cat > "$config_file"
+    
+    # Validate JSON
+    if ! jq empty "$config_file" 2>/dev/null; then
+        echo -e "${RED}Error: Invalid JSON${NC}"
+        rm -f "$config_file"
+        return 1
+    fi
+    
+    # Set permissions
+    chmod 600 "$config_file"
+    
     echo ""
-    read -p "Enter Base URL (optional, press Enter for default): " base_url
-    base_url="${base_url:-https://dashscope.aliyuncs.com/compatible-mode/v1}"
-    
-    # Encode and store
-    local encoded_key
-    encoded_key=$(encode_credentials "$api_key")
-    
-    # Update credentials file
-    local temp_file
-    temp_file=$(mktemp)
-    
-    jq --arg name "$name" \
-       --arg key "$encoded_key" \
-       --arg url "$base_url" \
-       --arg added "$(date -Iseconds)" \
-       '.[$name] = {
-           "api_key": $key,
-           "base_url": $url,
-           "added_at": $added,
-           "last_used": null,
-           "token_expires": null
-       }' "${CREDENTIALS_FILE}" > "$temp_file"
-    
-    mv "$temp_file" "${CREDENTIALS_FILE}"
-    chmod 600 "${CREDENTIALS_FILE}"
-    
-    # Update stats
-    jq --arg name "$name" \
-       '.accounts[$name] = {
-           "requests": 0,
-           "last_request": null
-       }' "${STATS_FILE}" > "$temp_file"
-    
-    mv "$temp_file" "${STATS_FILE}"
-    
-    echo -e "${GREEN}✓ Account added successfully${NC}"
+    echo -e "${GREEN}✓ Account added: ${name}${NC}"
     echo ""
-    echo "Account: ${name}"
-    echo "Base URL: ${base_url}"
-    echo "API Key: $(mask_key "$api_key")"
+    echo "To activate this account, run:"
+    echo "  qwen-oauth use ${name}"
+}
+
+# Import account from existing config
+cmd_import() {
+    local name="${1:-}"
+    local source="${2:-}"
+    
+    if [[ -z "$name" ]] || [[ -z "$source" ]]; then
+        echo -e "${RED}Error: Name and source required${NC}"
+        echo "Usage: qwen-oauth import <name> <source_config>"
+        return 1
+    fi
+    
+    if account_exists "$name"; then
+        echo -e "${RED}Error: Account '${name}' already exists${NC}"
+        return 1
+    fi
+    
+    if [[ ! -f "$source" ]]; then
+        echo -e "${RED}Error: Source config not found: ${source}${NC}"
+        return 1
+    fi
+    
+    # Create account directory
+    mkdir -p "${ACCOUNTS_DIR}/${name}"
+    
+    # Copy config
+    cp "$source" "${ACCOUNTS_DIR}/${name}/settings.json"
+    chmod 600 "${ACCOUNTS_DIR}/${name}/settings.json"
+    
+    echo -e "${GREEN}✓ Account imported: ${name}${NC}"
 }
 
 # List all accounts
 cmd_list() {
-    echo -e "${BLUE}Configured Accounts:${NC}"
+    echo -e "${BLUE}OAuth Accounts:${NC}"
     echo ""
     
     local current
-    current=$(cat "${CURRENT_ACCOUNT_FILE}" 2>/dev/null || echo "")
+    current=$(get_current_account)
     
-    jq -r 'to_entries[] | "\(.key)|\(.value.base_url)|\(.value.added_at)"' "${CREDENTIALS_FILE}" | \
-    while IFS='|' read -r name url added; do
+    local count
+    count=$(get_account_count)
+    
+    if [[ "$count" -eq 0 ]]; then
+        echo "  No accounts stored"
+        echo ""
+        echo "To add an account:"
+        echo "  1. Login to Qwen Code with the account"
+        echo "  2. Run: qwen-oauth add <name>"
+        echo "  3. Paste your settings.json content"
+        return 0
+    fi
+    
+    for account_dir in "${ACCOUNTS_DIR}"/*/; do
+        [[ -d "$account_dir" ]] || continue
+        
+        local name
+        name=$(basename "$account_dir")
+        
         local marker="  "
         if [[ "$name" == "$current" ]]; then
             marker="* "
         fi
         
+        local config_file="${account_dir}settings.json"
+        local added_at="Unknown"
+        
+        if [[ -f "$config_file" ]]; then
+            added_at=$(jq -r '.created_at // "Unknown"' "$config_file" 2>/dev/null || echo "Unknown")
+        fi
+        
         echo -e "${marker}${GREEN}${name}${NC}"
-        echo "   URL: ${url}"
-        echo "   Added: ${added}"
+        echo "      Added: ${added_at}"
         echo ""
     done
     
@@ -151,75 +190,72 @@ cmd_list() {
     fi
 }
 
-# Switch account
-cmd_switch() {
+# Use specified account
+cmd_use() {
     local name="${1:-}"
     
     if [[ -z "$name" ]]; then
         echo -e "${RED}Error: Account name required${NC}"
-        echo "Usage: qwen-oauth switch <name>"
+        echo "Usage: qwen-oauth use <name>"
         return 1
     fi
     
-    # Check if account exists
-    if ! jq -e --arg name "$name" 'has($name)' "${CREDENTIALS_FILE}" > /dev/null; then
+    if ! account_exists "$name"; then
         echo -e "${RED}Error: Account '${name}' not found${NC}"
         return 1
     fi
     
-    # Switch
-    echo "$name" > "${CURRENT_ACCOUNT_FILE}"
-    chmod 600 "${CURRENT_ACCOUNT_FILE}"
+    # Backup current config if exists
+    if [[ -f "${QWEN_CONFIG_DIR}/settings.json" ]]; then
+        cmd_backup silent
+    fi
     
-    # Update stats
-    local temp_file
-    temp_file=$(mktemp)
-    jq --arg name "$name" \
-       --arg time "$(date -Iseconds)" \
-       '.accounts[$name].last_used = $time' "${STATS_FILE}" > "$temp_file"
-    mv "$temp_file" "${STATS_FILE}"
+    # Create Qwen config directory if needed
+    mkdir -p "${QWEN_CONFIG_DIR}"
     
-    # Export environment variables
-    local api_key base_url
-    api_key=$(jq -r --arg name "$name" '.[$name].api_key' "${CREDENTIALS_FILE}")
-    base_url=$(jq -r --arg name "$name" '.[$name].base_url' "${CREDENTIALS_FILE}")
+    # Copy account config to Qwen config directory
+    cp "${ACCOUNTS_DIR}/${name}/settings.json" "${QWEN_CONFIG_DIR}/settings.json"
+    chmod 600 "${QWEN_CONFIG_DIR}/settings.json"
+    
+    # Save current account
+    echo "$name" > "${CURRENT_FILE}"
+    chmod 600 "${CURRENT_FILE}"
     
     echo -e "${GREEN}✓ Switched to account: ${name}${NC}"
     echo ""
-    echo "To use in current shell, run:"
-    echo "  export QWEN_API_KEY=\"$(decode_credentials "$api_key" | mask_key "$(decode_credentials "$api_key")")\""
-    echo "  export QWEN_BASE_URL=\"${base_url}\""
+    echo "Config copied to: ${QWEN_CONFIG_DIR}/settings.json"
+    echo ""
+    echo "Now you can use: oml qwen"
 }
 
 # Show current account
 cmd_current() {
     local current
-    current=$(cat "${CURRENT_ACCOUNT_FILE}" 2>/dev/null || echo "")
+    current=$(get_current_account)
     
     if [[ -z "$current" ]]; then
         echo -e "${YELLOW}No active account${NC}"
-        echo "Use 'qwen-oauth switch <name>' to activate an account"
+        echo "Use 'qwen-oauth use <name>' to activate an account"
         return 0
     fi
     
-    if ! jq -e --arg name "$current" 'has($name)' "${CREDENTIALS_FILE}" > /dev/null; then
-        echo -e "${RED}Current account '${current}' not found in credentials${NC}"
+    if ! account_exists "$current"; then
+        echo -e "${RED}Current account '${current}' not found${NC}"
         return 1
     fi
     
-    local api_key base_url added last_used
-    api_key=$(jq -r --arg name "$current" '.[$name].api_key' "${CREDENTIALS_FILE}")
-    base_url=$(jq -r --arg name "$current" '.[$name].base_url' "${CREDENTIALS_FILE}")
-    added=$(jq -r --arg name "$current" '.[$name].added_at' "${CREDENTIALS_FILE}")
-    last_used=$(jq -r --arg name "$current" '.[$name].last_used // "N/A"' "${CREDENTIALS_FILE}")
+    local config_file="${ACCOUNTS_DIR}/${current}/settings.json"
+    local added_at
     
-    echo -e "${BLUE}Current Account:${NC}"
+    if [[ -f "$config_file" ]]; then
+        added_at=$(jq -r '.created_at // "Unknown"' "$config_file" 2>/dev/null || echo "Unknown")
+    fi
+    
+    echo -e "${BLUE}Current OAuth Account:${NC}"
     echo ""
     echo -e "  Name: ${GREEN}${current}${NC}"
-    echo "  Base URL: ${base_url}"
-    echo "  API Key: $(mask_key "$(decode_credentials "$api_key")")"
-    echo "  Added: ${added}"
-    echo "  Last Used: ${last_used}"
+    echo "  Added: ${added_at}"
+    echo "  Config: ${QWEN_CONFIG_DIR}/settings.json"
 }
 
 # Remove account
@@ -232,147 +268,176 @@ cmd_remove() {
         return 1
     fi
     
-    # Check if account exists
-    if ! jq -e --arg name "$name" 'has($name)' "${CREDENTIALS_FILE}" > /dev/null; then
+    if ! account_exists "$name"; then
         echo -e "${RED}Error: Account '${name}' not found${NC}"
         return 1
     fi
     
-    # Remove from credentials
-    local temp_file
-    temp_file=$(mktemp)
-    jq --arg name "$name" 'del(.[$name])' "${CREDENTIALS_FILE}" > "$temp_file"
-    mv "$temp_file" "${CREDENTIALS_FILE}"
+    # Confirm
+    echo -n "Are you sure you want to remove account '${name}'? (y/N): "
+    read -r confirm
     
-    # Remove from stats
-    jq --arg name "$name" 'del(.accounts[$name])' "${STATS_FILE}" > "$temp_file"
-    mv "$temp_file" "${STATS_FILE}"
+    if [[ "$confirm" != "y" ]] && [[ "$confirm" != "Y" ]]; then
+        echo "Cancelled"
+        return 0
+    fi
+    
+    # Remove account directory
+    rm -rf "${ACCOUNTS_DIR}/${name}"
     
     # Clear current if needed
     local current
-    current=$(cat "${CURRENT_ACCOUNT_FILE}" 2>/dev/null || echo "")
+    current=$(get_current_account)
     if [[ "$current" == "$name" ]]; then
-        rm -f "${CURRENT_ACCOUNT_FILE}"
+        rm -f "${CURRENT_FILE}"
     fi
     
     echo -e "${GREEN}✓ Account removed: ${name}${NC}"
 }
 
-# Refresh token (placeholder for OAuth flow)
-cmd_refresh() {
-    local current
-    current=$(cat "${CURRENT_ACCOUNT_FILE}" 2>/dev/null || echo "")
+# Rotate to next account
+cmd_rotate() {
+    local count
+    count=$(get_account_count)
     
-    if [[ -z "$current" ]]; then
-        echo -e "${RED}Error: No active account${NC}"
+    if [[ "$count" -eq 0 ]]; then
+        echo -e "${RED}Error: No accounts stored${NC}"
         return 1
     fi
     
-    echo -e "${BLUE}Refreshing token for: ${current}${NC}"
-    echo ""
-    echo "Note: Current implementation uses API keys."
-    echo "OAuth token refresh will be implemented in future versions."
-}
-
-# Show usage statistics
-cmd_stats() {
-    echo -e "${BLUE}Usage Statistics:${NC}"
-    echo ""
-    
-    # Total requests
-    local total
-    total=$(jq -r '.total_requests' "${STATS_FILE}")
-    echo "Total Requests: ${total}"
-    echo ""
-    
-    # Per-account stats
-    echo "Per-Account Stats:"
-    jq -r '.accounts | to_entries[] | "  \(.key): \(.value.requests) requests"' "${STATS_FILE}"
-}
-
-# Health check
-cmd_health() {
     local current
-    current=$(cat "${CURRENT_ACCOUNT_FILE}" 2>/dev/null || echo "")
+    current=$(get_current_account)
     
-    if [[ -z "$current" ]]; then
-        echo -e "${RED}✗ No active account${NC}"
+    # Get all account names
+    local accounts=()
+    for account_dir in "${ACCOUNTS_DIR}"/*/; do
+        [[ -d "$account_dir" ]] || continue
+        accounts+=("$(basename "$account_dir")")
+    done
+    
+    # Find next index
+    local next_index=0
+    for i in "${!accounts[@]}"; do
+        if [[ "${accounts[$i]}" == "$current" ]]; then
+            next_index=$(( (i + 1) % ${#accounts[@]} ))
+            break
+        fi
+    done
+    
+    local next_account="${accounts[$next_index]}"
+    
+    # Use next account
+    cmd_use "$next_account"
+}
+
+# Backup current config
+cmd_backup() {
+    local silent="${1:-}"
+    
+    if [[ ! -f "${QWEN_CONFIG_DIR}/settings.json" ]]; then
+        if [[ "$silent" != "silent" ]]; then
+            echo -e "${YELLOW}No config to backup${NC}"
+        fi
+        return 0
+    fi
+    
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_dir="${BACKUPS_DIR}/${timestamp}"
+    
+    mkdir -p "$backup_dir"
+    cp "${QWEN_CONFIG_DIR}/settings.json" "$backup_dir/"
+    
+    if [[ "$silent" != "silent" ]]; then
+        echo -e "${GREEN}✓ Backup created: ${backup_dir}${NC}"
+    fi
+}
+
+# Restore from backup
+cmd_restore() {
+    local backup="${1:-}"
+    
+    if [[ -z "$backup" ]]; then
+        echo -e "${RED}Error: Backup path required${NC}"
+        echo "Usage: qwen-oauth restore <backup_path>"
+        echo ""
+        echo "Available backups:"
+        ls -1 "${BACKUPS_DIR}" 2>/dev/null || echo "  None"
         return 1
     fi
     
-    local api_key base_url
-    api_key=$(jq -r --arg name "$current" '.[$name].api_key' "${CREDENTIALS_FILE}")
-    base_url=$(jq -r --arg name "$current" '.[$name].base_url' "${CREDENTIALS_FILE}")
+    local backup_dir="${BACKUPS_DIR}/${backup}"
+    if [[ ! -d "$backup_dir" ]]; then
+        backup_dir="$backup"
+    fi
     
-    echo -e "${BLUE}Health Check for: ${current}${NC}"
-    echo ""
+    if [[ ! -f "${backup_dir}/settings.json" ]]; then
+        echo -e "${RED}Error: Backup not found: ${backup}${NC}"
+        return 1
+    fi
     
-    # Check API connectivity
-    echo "Testing API connectivity..."
+    # Restore
+    mkdir -p "${QWEN_CONFIG_DIR}"
+    cp "${backup_dir}/settings.json" "${QWEN_CONFIG_DIR}/settings.json"
     
-    local response
-    response=$(curl -s -o /dev/null -w "%{http_code}" \
-        -H "Authorization: Bearer $(decode_credentials "$api_key")" \
-        "${base_url}/models" 2>/dev/null || echo "000")
-    
-    case "$response" in
-        200)
-            echo -e "${GREEN}✓ API connection successful${NC}"
-            ;;
-        401)
-            echo -e "${RED}✗ Authentication failed${NC}"
-            echo "  Please check your API key"
-            return 1
-            ;;
-        403)
-            echo -e "${RED}✗ Access forbidden${NC}"
-            echo "  API key may be expired or revoked"
-            return 1
-            ;;
-        000)
-            echo -e "${RED}✗ Connection failed${NC}"
-            echo "  Check your network connection"
-            return 1
-            ;;
-        *)
-            echo -e "${YELLOW}⚠ Unexpected response: ${response}${NC}"
-            ;;
-    esac
+    echo -e "${GREEN}✓ Config restored from: ${backup}${NC}"
 }
 
 # Show help
 show_help() {
     cat <<EOF
-Qwen OAuth Switcher - Multi-account credential manager
+Qwen OAuth Switcher - Manage multiple free accounts via config file switching
 
 Usage: qwen-oauth <command> [args]
 
 Commands:
-  list              List all configured accounts
-  add <name>        Add new OAuth account
-  switch <name>     Switch to specified account
-  current           Show current active account
-  remove <name>     Remove OAuth account
-  refresh           Refresh access token
-  stats             Show usage statistics
-  health            Health check for current account
-  help              Show this help message
+  list                  List all OAuth accounts
+  add <name>            Add new account (paste settings.json)
+  import <name> <src>   Import account from existing config
+  use <name>            Switch to specified account
+  current               Show current active account
+  remove <name>         Remove OAuth account
+  rotate                Rotate to next account
+  backup                Backup current config
+  restore <backup>      Restore from backup
+  help                  Show this help message
+
+Principle:
+  This tool manages multiple OAuth accounts by storing config files
+  and switching them by copying to ~/.local/home/qwenx/.qwen/settings.json
 
 Examples:
-  qwen-oauth add work           # Add work account
-  qwen-oauth add personal       # Add personal account
-  qwen-oauth list               # List all accounts
-  qwen-oauth switch work        # Switch to work account
-  qwen-oauth current            # Show current account
-  qwen-oauth health             # Check API connectivity
-  qwen-oauth stats              # Show usage stats
-  qwen-oauth remove old         # Remove old account
+  # Add account (interactive)
+  qwen-oauth add work
+  # Then paste your settings.json content
+
+  # Import from existing config
+  qwen-oauth import personal ~/.local/home/qwenx/.qwen/settings.json
+
+  # List accounts
+  qwen-oauth list
+
+  # Switch account
+  qwen-oauth use work
+
+  # Rotate to next account
+  qwen-oauth rotate
+
+  # Backup current config
+  qwen-oauth backup
+
+  # Restore from backup
+  qwen-oauth restore 20260323_120000
+
+Storage:
+  ~/.oml/qwen-oauth/
+  ├── accounts/<name>/settings.json  # OAuth config for each account
+  ├── current                        # Current account name
+  └── backups/<timestamp>/           # Config backups
 
 Security:
-  - Credentials are stored in ~/.oml/qwen-oauth/
-  - API keys are Base64 encoded
   - Directory permissions: 700 (owner only)
-  - File permissions: 600 (owner read/write only)
+  - File permissions: 600 (owner read/write)
 
 EOF
 }
@@ -391,8 +456,11 @@ main() {
         add)
             cmd_add "$@"
             ;;
-        switch)
-            cmd_switch "$@"
+        import)
+            cmd_import "$@"
+            ;;
+        use)
+            cmd_use "$@"
             ;;
         current)
             cmd_current
@@ -400,14 +468,14 @@ main() {
         remove)
             cmd_remove "$@"
             ;;
-        refresh)
-            cmd_refresh
+        rotate)
+            cmd_rotate
             ;;
-        stats)
-            cmd_stats
+        backup)
+            cmd_backup
             ;;
-        health)
-            cmd_health
+        restore)
+            cmd_restore "$@"
             ;;
         help|--help|-h)
             show_help

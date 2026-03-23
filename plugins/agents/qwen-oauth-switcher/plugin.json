@@ -1,8 +1,8 @@
 {
   "name": "qwen-oauth-switcher",
   "version": "1.0.0",
-  "type": "agent",
-  "description": "Qwen OAuth credential manager and account switcher",
+  "type": "utility",
+  "description": "Qwen OAuth account switcher - Manage multiple free accounts via config file switching",
   "author": "OML Team",
   "license": "MIT",
   "platforms": ["termux", "gnu-linux"],
@@ -11,24 +11,29 @@
     "QWEN_OAUTH_DIR": {
       "required": false,
       "default": "~/.oml/qwen-oauth",
-      "description": "OAuth credentials storage directory"
+      "description": "OAuth config storage directory"
+    },
+    "QWEN_CONFIG_DIR": {
+      "required": false,
+      "default": "~/.local/home/qwenx/.qwen",
+      "description": "Qwen config directory"
     }
   },
   "commands": [
     {
       "name": "list",
-      "description": "List all configured accounts",
+      "description": "List all OAuth accounts",
       "handler": "main.sh list"
     },
     {
       "name": "add",
-      "description": "Add new OAuth account",
+      "description": "Add new OAuth account (login to get config)",
       "handler": "main.sh add"
     },
     {
-      "name": "switch",
+      "name": "use",
       "description": "Switch to specified account",
-      "handler": "main.sh switch"
+      "handler": "main.sh use"
     },
     {
       "name": "current",
@@ -41,26 +46,25 @@
       "handler": "main.sh remove"
     },
     {
-      "name": "refresh",
-      "description": "Refresh access token",
-      "handler": "main.sh refresh"
+      "name": "rotate",
+      "description": "Rotate to next account",
+      "handler": "main.sh rotate"
     },
     {
-      "name": "stats",
-      "description": "Show usage statistics",
-      "handler": "main.sh stats"
+      "name": "backup",
+      "description": "Backup current config",
+      "handler": "main.sh backup"
     },
     {
-      "name": "health",
-      "description": "Health check for current account",
-      "handler": "main.sh health"
+      "name": "restore",
+      "description": "Restore from backup",
+      "handler": "main.sh restore"
     }
   ],
   "features": {
     "multiAccount": true,
-    "autoRefresh": true,
-    "encryptedStorage": true,
-    "usageStats": true,
-    "healthCheck": true
+    "fileSwitching": true,
+    "autoBackup": true,
+    "configCopy": true
   }
 }
