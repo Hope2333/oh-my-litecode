@@ -1,0 +1,16 @@
+{
+  "id": "session-1774236026366-1cb20148bef8557e",
+  "name": "React Project",
+  "type": "default",
+  "status": "running",
+  "createdAt": 1774236026366,
+  "updatedAt": 1774236026367,
+  "messages": [
+    {
+      "id": "msg-1774236026367-ed16bf04",
+      "role": "user",
+      "content": "React hooks tutorial",
+      "timestamp": 1774236026367
+    }
+  ]
+}

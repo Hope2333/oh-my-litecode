@@ -281,20 +281,27 @@ export async function forkSession(
 export async function searchSessions(query: string): Promise<Session[]> {
   const sessions = await listSessions();
   const results: Session[] = [];
+  const seen = new Set<string>();
   
   const queryLower = query.toLowerCase();
   
   for (const session of sessions) {
+    if (seen.has(session.id)) continue;
+    
     // Search in name
     if (session.name?.toLowerCase().includes(queryLower)) {
       results.push(session);
+      seen.add(session.id);
       continue;
     }
     
     // Search in messages
     for (const message of session.messages) {
       if (message.content.toLowerCase().includes(queryLower)) {
-        results.push(session);
+        if (!seen.has(session.id)) {
+          results.push(session);
+          seen.add(session.id);
+        }
         break;
       }
     }

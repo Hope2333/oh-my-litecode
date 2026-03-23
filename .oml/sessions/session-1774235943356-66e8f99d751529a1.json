@@ -1,0 +1,16 @@
+{
+  "id": "session-1774235943356-66e8f99d751529a1",
+  "name": "Vue Project",
+  "type": "default",
+  "status": "running",
+  "createdAt": 1774235943356,
+  "updatedAt": 1774235943357,
+  "messages": [
+    {
+      "id": "msg-1774235943357-91f2792a",
+      "role": "user",
+      "content": "Vue composition API",
+      "timestamp": 1774235943357
+    }
+  ]
+}

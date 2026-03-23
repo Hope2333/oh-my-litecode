@@ -1,0 +1,15 @@
+{
+  "id": "session-1774236026360-9899da0be5b8fc95",
+  "type": "default",
+  "status": "running",
+  "createdAt": 1774236026360,
+  "updatedAt": 1774236026361,
+  "messages": [
+    {
+      "id": "msg-1774236026361-73aa8c12",
+      "role": "user",
+      "content": "Hello, world!",
+      "timestamp": 1774236026361
+    }
+  ]
+}

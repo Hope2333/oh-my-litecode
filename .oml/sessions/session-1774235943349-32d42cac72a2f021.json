@@ -1,0 +1,19 @@
+{
+  "id": "session-1774235943349-32d42cac72a2f021",
+  "name": "Parent",
+  "type": "default",
+  "status": "running",
+  "createdAt": 1774235943349,
+  "updatedAt": 1774235943352,
+  "messages": [
+    {
+      "id": "msg-1774235943350-c619d289",
+      "role": "user",
+      "content": "Test message",
+      "timestamp": 1774235943350
+    }
+  ],
+  "children": [
+    "session-1774235943352-ae14452a99344f22"
+  ]
+}
