@@ -143,6 +143,17 @@ Commands:
 
   supertui  ${supertui_desc}
     Interactive TUI for OML management
+
+  cloud     ${cloud_desc}
+    sync [pull|push|status]  Sync with cloud
+    auth                     Authenticate
+    config                   Configure sync
+
+  perf      ${perf_desc}
+    benchmark                Run benchmarks
+    profile                  Profile performance
+    optimize                 Apply optimizations
+    status                   Show performance status
     spawn <agent> --task "<desc>" [--scope "<pattern>"] [--background]
     status [filter]             Show task status (all|running|pending)
     logs --task-id "<id>" [-f]  Show task logs
