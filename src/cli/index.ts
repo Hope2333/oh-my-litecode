@@ -75,14 +75,15 @@ program
   });
 
 // Help override for platform-aware help
+const originalHelp = program.helpInformation.bind(program);
 program.helpInformation = function() {
   const platform = detectPlatform();
-  let help = super.helpInformation();
-  
+  let help = originalHelp();
+
   // Insert platform info
   const lines = help.split('\n');
   lines.splice(2, 0, `\n${pc.blue(`Current Platform:`)} ${platform}\n`);
-  
+
   return lines.join('\n');
 };
 

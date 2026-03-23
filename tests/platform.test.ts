@@ -4,7 +4,7 @@ import {
   getPlatformFamily, 
   getPackageManager,
   getArchitecture 
-} from '../platform';
+} from '../src/core/platform.js';
 
 describe('Platform Detection', () => {
   it('should detect current platform', () => {
