@@ -1,0 +1,66 @@
+{
+  "name": "qwen-oauth-switcher",
+  "version": "1.0.0",
+  "type": "agent",
+  "description": "Qwen OAuth credential manager and account switcher",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3", "jq"],
+  "env": {
+    "QWEN_OAUTH_DIR": {
+      "required": false,
+      "default": "~/.oml/qwen-oauth",
+      "description": "OAuth credentials storage directory"
+    }
+  },
+  "commands": [
+    {
+      "name": "list",
+      "description": "List all configured accounts",
+      "handler": "main.sh list"
+    },
+    {
+      "name": "add",
+      "description": "Add new OAuth account",
+      "handler": "main.sh add"
+    },
+    {
+      "name": "switch",
+      "description": "Switch to specified account",
+      "handler": "main.sh switch"
+    },
+    {
+      "name": "current",
+      "description": "Show current active account",
+      "handler": "main.sh current"
+    },
+    {
+      "name": "remove",
+      "description": "Remove OAuth account",
+      "handler": "main.sh remove"
+    },
+    {
+      "name": "refresh",
+      "description": "Refresh access token",
+      "handler": "main.sh refresh"
+    },
+    {
+      "name": "stats",
+      "description": "Show usage statistics",
+      "handler": "main.sh stats"
+    },
+    {
+      "name": "health",
+      "description": "Health check for current account",
+      "handler": "main.sh health"
+    }
+  ],
+  "features": {
+    "multiAccount": true,
+    "autoRefresh": true,
+    "encryptedStorage": true,
+    "usageStats": true,
+    "healthCheck": true
+  }
+}
