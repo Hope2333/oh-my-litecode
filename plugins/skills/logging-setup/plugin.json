@@ -1,0 +1,1 @@
+{"name":"logging-setup","version":"0.2.0","type":"skill","description":"Logging setup skill","author":"OML Team","license":"MIT","platforms":["termux","gnu-linux"],"dependencies":["bash"],"commands":[{"name":"setup_logging","description":"Setup logging","handler":"main.sh setup_logging"},{"name":"check_logging","description":"Check logging","handler":"main.sh check_logging"}]}
