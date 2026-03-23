@@ -1,0 +1,18 @@
+{
+  "id": "session-1774235824628-cf561d34073d10df",
+  "name": "Forked",
+  "type": "fork",
+  "status": "pending",
+  "createdAt": 1774235824628,
+  "updatedAt": 1774235824629,
+  "messages": [
+    {
+      "id": "msg-1774235824627-16134f46",
+      "role": "user",
+      "content": "Test message",
+      "timestamp": 1774235824627
+    }
+  ],
+  "metadata": {},
+  "parentId": "session-1774235824627-6399c98ac074fc05"
+}
