@@ -1,0 +1,2 @@
+[console_scripts]
+grep-app-enhanced = grep_app_enhanced.mcp_server:main
