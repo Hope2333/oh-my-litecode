@@ -1,0 +1,72 @@
+{
+  "name": "qwen-key-switcher",
+  "version": "1.0.0",
+  "type": "utility",
+  "description": "Qwen API Key manager - Store and switch between multiple free API keys",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3", "jq"],
+  "env": {
+    "QWEN_KEY_DIR": {
+      "required": false,
+      "default": "~/.oml/qwen-keys",
+      "description": "API keys storage directory"
+    }
+  },
+  "commands": [
+    {
+      "name": "list",
+      "description": "List all stored API keys",
+      "handler": "main.sh list"
+    },
+    {
+      "name": "add",
+      "description": "Add new API key",
+      "handler": "main.sh add"
+    },
+    {
+      "name": "use",
+      "description": "Switch to specified key",
+      "handler": "main.sh use"
+    },
+    {
+      "name": "current",
+      "description": "Show current active key",
+      "handler": "main.sh current"
+    },
+    {
+      "name": "remove",
+      "description": "Remove API key",
+      "handler": "main.sh remove"
+    },
+    {
+      "name": "rotate",
+      "description": "Rotate to next key",
+      "handler": "main.sh rotate"
+    },
+    {
+      "name": "stats",
+      "description": "Show usage statistics",
+      "handler": "main.sh stats"
+    },
+    {
+      "name": "health",
+      "description": "Health check all keys",
+      "handler": "main.sh health"
+    },
+    {
+      "name": "export",
+      "description": "Export current key to environment",
+      "handler": "main.sh export"
+    }
+  ],
+  "features": {
+    "multiKey": true,
+    "encryptedStorage": true,
+    "autoRotate": true,
+    "usageStats": true,
+    "healthCheck": true,
+    "qwenIntegration": true
+  }
+}
