@@ -1,0 +1,38 @@
+{
+  "name": "tester",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Tester subagent - Generate tests, run tests, report coverage",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {
+      "name": "generate_tests",
+      "description": "Generate test cases",
+      "handler": "main.sh generate_tests"
+    },
+    {
+      "name": "run_tests",
+      "description": "Run test suite",
+      "handler": "main.sh run_tests"
+    },
+    {
+      "name": "report_coverage",
+      "description": "Report test coverage",
+      "handler": "main.sh report_coverage"
+    },
+    {
+      "name": "fix_tests",
+      "description": "Fix failing tests",
+      "handler": "main.sh fix_tests"
+    }
+  ],
+  "capabilities": {
+    "testGeneration": true,
+    "testExecution": true,
+    "coverageReporting": true,
+    "testFixing": true
+  }
+}

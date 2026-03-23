@@ -1,0 +1,33 @@
+{
+  "name": "code-review",
+  "version": "0.2.0",
+  "type": "skill",
+  "description": "Code review skill - Review code, suggest improvements, check style",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {
+      "name": "review_code",
+      "description": "Review code for issues",
+      "handler": "main.sh review_code"
+    },
+    {
+      "name": "suggest_improvements",
+      "description": "Suggest code improvements",
+      "handler": "main.sh suggest_improvements"
+    },
+    {
+      "name": "check_style",
+      "description": "Check code style",
+      "handler": "main.sh check_style"
+    }
+  ],
+  "capabilities": {
+    "codeReview": true,
+    "improvementSuggestions": true,
+    "styleChecking": true,
+    "bestPractices": true
+  }
+}

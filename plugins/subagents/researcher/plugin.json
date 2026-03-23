@@ -1,0 +1,38 @@
+{
+  "name": "researcher",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Research subagent - Search web, analyze data, compile reports",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "curl"],
+  "commands": [
+    {
+      "name": "search_web",
+      "description": "Search web for information",
+      "handler": "main.sh search_web"
+    },
+    {
+      "name": "analyze_data",
+      "description": "Analyze collected data",
+      "handler": "main.sh analyze_data"
+    },
+    {
+      "name": "compile_report",
+      "description": "Compile research report",
+      "handler": "main.sh compile_report"
+    },
+    {
+      "name": "find_sources",
+      "description": "Find credible sources",
+      "handler": "main.sh find_sources"
+    }
+  ],
+  "capabilities": {
+    "webSearch": true,
+    "dataAnalysis": true,
+    "reportGeneration": true,
+    "sourceVerification": true
+  }
+}
