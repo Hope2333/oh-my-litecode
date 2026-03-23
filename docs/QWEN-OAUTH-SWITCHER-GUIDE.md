@@ -7,50 +7,61 @@
 
 ## 📖 简介
 
-Qwen OAuth 切换器是一个多账号管理工具，支持：
-- ✅ 多账号存储和切换
-- ✅ 加密凭证存储
-- ✅ 使用统计追踪
-- ✅ API 健康检查
+Qwen OAuth 切换器是一个**通过配置文件切换**来管理多个免费 Qwen 账号的工具。
+
+### 工作原理
+
+```
+存储多个 settings.json → 复制到 Qwen 配置目录 → 实现账号切换
+```
+
+### 核心功能
+
+- ✅ 存储多个 OAuth 配置文件
+- ✅ 通过文件复制切换账号
+- ✅ 备份和恢复功能
+- ✅ 账号轮询
+- ✅ 自动备份当前配置
 
 ---
 
 ## 🚀 快速开始
 
-### 安装
-
-```bash
-# 插件已集成，无需额外安装
-cd ~/develop/oh-my-litecode
-```
-
 ### 添加账号
 
 ```bash
-# 添加工作账号
+# 1. 在浏览器登录 Qwen Code
+# 2. 复制 ~/.local/home/qwenx/.qwen/settings.json 内容
+# 3. 运行添加命令
+
 oml qwen-oauth add work
 
-# 添加个人账号
-oml qwen-oauth add personal
+# 粘贴 settings.json 内容，按 Ctrl+D 结束
+```
+
+### 导入现有配置
+
+```bash
+# 从当前配置导入
+oml qwen-oauth import personal ~/.local/home/qwenx/.qwen/settings.json
 ```
 
 ### 切换账号
 
 ```bash
-# 切换到工作账号
-oml qwen-oauth switch work
+# 列出所有账号
+oml qwen-oauth list
 
-# 查看当前账号
-oml qwen-oauth current
+# 切换到工作账号
+oml qwen-oauth use work
+
+# 自动备份当前配置并切换
 ```
 
 ### 使用账号
 
 ```bash
-# 导出环境变量
-eval $(oml qwen-oauth switch work)
-
-# 或使用 qwen 插件
+# 切换后直接使用
 oml qwen "你好"
 ```
 
@@ -64,43 +75,48 @@ oml qwen "你好"
 |------|------|------|
 | **list** | 列出所有账号 | `oml qwen-oauth list` |
 | **add** | 添加新账号 | `oml qwen-oauth add work` |
-| **switch** | 切换账号 | `oml qwen-oauth switch work` |
+| **import** | 导入现有配置 | `oml qwen-oauth import personal <file>` |
+| **use** | 切换到指定账号 | `oml qwen-oauth use work` |
 | **current** | 显示当前账号 | `oml qwen-oauth current` |
 | **remove** | 删除账号 | `oml qwen-oauth remove work` |
+| **rotate** | 轮询到下一个账号 | `oml qwen-oauth rotate` |
 
-### 工具命令
+### 备份工具
 
 | 命令 | 功能 | 示例 |
 |------|------|------|
-| **refresh** | 刷新 token | `oml qwen-oauth refresh` |
-| **stats** | 使用统计 | `oml qwen-oauth stats` |
-| **health** | 健康检查 | `oml qwen-oauth health` |
-| **help** | 显示帮助 | `oml qwen-oauth help` |
+| **backup** | 备份当前配置 | `oml qwen-oauth backup` |
+| **restore** | 恢复配置 | `oml qwen-oauth restore 20260323_120000` |
 
 ---
 
-## 🔐 安全特性
+## 💾 存储说明
 
-### 加密存储
+### 存储位置
 
-- **存储位置**: `~/.oml/qwen-oauth/`
-- **加密方式**: Base64 编码
-- **目录权限**: 700 (仅所有者)
-- **文件权限**: 600 (仅所有者读写)
-
-### 密钥掩码
-
-```bash
-# 显示时自动掩码
-API Key: sk-proj...abcd
+```
+~/.oml/qwen-oauth/
+├── accounts/
+│   ├── work/settings.json       # 工作账号配置
+│   └── personal/settings.json   # 个人账号配置
+├── current                      # 当前账号名称
+└── backups/
+    └── 20260323_120000/         # 配置备份
+        └── settings.json
 ```
 
-### 自动过期检测
+### 切换原理
 
 ```bash
-# 健康检查会自动检测 token 过期
-oml qwen-oauth health
+# 当执行 qwen-oauth use work 时：
+cp ~/.oml/qwen-oauth/accounts/work/settings.json \
+   ~/.local/home/qwenx/.qwen/settings.json
 ```
+
+### 文件权限
+
+- **目录**: 700 (仅所有者)
+- **文件**: 600 (仅所有者读写)
 
 ---
 
@@ -109,90 +125,78 @@ oml qwen-oauth health
 ### 多账号工作流
 
 ```bash
-# 1. 添加多个账号
+# 1. 添加工作账号
 oml qwen-oauth add work
-oml qwen-oauth add personal
-oml qwen-oauth add test
+# 粘贴工作账号的 settings.json
 
-# 2. 列出所有账号
+# 2. 添加个人账号
+oml qwen-oauth add personal
+# 粘贴个人账号的 settings.json
+
+# 3. 列出所有账号
 oml qwen-oauth list
 
-# 3. 切换到工作账号
-oml qwen-oauth switch work
+# 输出示例：
+# OAuth Accounts:
+# 
+# * work
+#       Added: 2026-03-23T10:00:00+08:00
+# 
+#   personal
+#       Added: 2026-03-23T10:01:00+08:00
+# 
+# Current account: work
 
-# 4. 使用 qwen
+# 4. 切换到个人账号
+oml qwen-oauth use personal
+
+# 5. 使用 qwen
 oml qwen "帮我写代码"
 
-# 5. 切换到个人账号
-oml qwen-oauth switch personal
-
-# 6. 查看使用统计
-oml qwen-oauth stats
+# 6. 轮询到下一个账号（当限额用完时）
+oml qwen-oauth rotate
 ```
 
-### 健康检查
+### 备份和恢复
 
 ```bash
-# 检查当前账号 API 连接
-oml qwen-oauth health
+# 备份当前配置
+oml qwen-oauth backup
 
 # 输出示例：
-# Health Check for: work
-# Testing API connectivity...
-# ✓ API connection successful
+# ✓ Backup created: ~/.oml/qwen-oauth/backups/20260323_120000
+
+# 列出备份
+ls ~/.oml/qwen-oauth/backups/
+
+# 恢复配置
+oml qwen-oauth restore 20260323_120000
 ```
 
-### 使用统计
+### 导入现有配置
 
 ```bash
-# 查看所有账号使用统计
-oml qwen-oauth stats
+# 从当前配置导入为个人账号
+oml qwen-oauth import personal ~/.local/home/qwenx/.qwen/settings.json
 
-# 输出示例：
-# Usage Statistics:
-# 
-# Total Requests: 150
-# 
-# Per-Account Stats:
-#   work: 100 requests
-#   personal: 45 requests
-#   test: 5 requests
-```
-
----
-
-## ⚙️ 配置选项
-
-### 环境变量
-
-| 变量 | 说明 | 默认值 |
-|------|------|-------|
-| **QWEN_OAUTH_DIR** | 凭证存储目录 | `~/.oml/qwen-oauth` |
-
-### 配置文件
-
-```json
-// ~/.oml/qwen-oauth/credentials.json
-{
-  "work": {
-    "api_key": "Base64 编码的密钥",
-    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-    "added_at": "2026-03-23T10:00:00+08:00",
-    "last_used": "2026-03-23T12:00:00+08:00"
-  },
-  "personal": {
-    ...
-  }
-}
+# 从备份导入
+oml qwen-oauth import old ~/.oml/qwen-oauth/backups/20260322_100000/settings.json
 ```
 
 ---
 
 ## ❓ 常见问题
 
-### Q: 如何备份账号配置？
+### Q: 如何获取 settings.json？
 
-**A**: 复制配置目录：
+**A**: 
+1. 登录 Qwen Code 到浏览器
+2. 复制 `~/.local/home/qwenx/.qwen/settings.json` 内容
+3. 运行 `oml qwen-oauth add <name>` 粘贴内容
+
+### Q: 如何备份所有账号？
+
+**A**: 
 ```bash
 cp -r ~/.oml/qwen-oauth ~/backup/qwen-oauth-backup
 ```
@@ -201,7 +205,7 @@ cp -r ~/.oml/qwen-oauth ~/backup/qwen-oauth-backup
 
 **A**: 
 ```bash
-# 1. 导出配置
+# 1. 导出
 tar -czf qwen-oauth-backup.tar.gz ~/.oml/qwen-oauth
 
 # 2. 在新设备上解压
@@ -223,9 +227,9 @@ rm -rf ~/.oml/qwen-oauth
 
 ## 🔗 相关文档
 
+- [Qwen Key Switcher](QWEN-KEY-SWITCHER-GUIDE.md) - API Key 管理
 - [Qwen Agent 插件](../plugins/agents/qwen/)
 - [OML 插件系统](../OML-PLUGINS.md)
-- [快速开始](../QUICKSTART.md)
 
 ---
 
