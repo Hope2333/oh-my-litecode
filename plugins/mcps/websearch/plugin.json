@@ -1,6 +1,6 @@
 {
   "name": "websearch",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "type": "mcp",
   "description": "Web Search MCP service using Exa AI - Provides web search and code context retrieval",
   "author": "OML Team",

@@ -1,6 +1,6 @@
 {
   "name": "hooks-runtime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "core",
   "description": "OML Hooks 运行时插件 - 提供 Hooks 引擎的完整运行时支持",
   "author": "OML Team",

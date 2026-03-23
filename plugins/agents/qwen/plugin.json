@@ -1,6 +1,6 @@
 {
   "name": "qwen",
-  "version": "1.1.0",
+  "version": "0.2.0",
   "type": "agent",
   "description": "Qwen Code 兼容代理 (原 qwenx 功能) - 增强 Session 和 Hooks 支持",
   "author": "OML Team",

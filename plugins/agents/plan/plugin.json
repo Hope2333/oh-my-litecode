@@ -1,6 +1,6 @@
 {
   "name": "plan",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "type": "agent",
   "description": "Plan Agent - 任务规划、分解、依赖分析与进度追踪",
   "author": "OML Team",

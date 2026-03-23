@@ -1,6 +1,6 @@
 {
   "name": "grep-app",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "type": "mcp",
   "description": "Grep-App MCP 服务 - 自然语言搜索、正则匹配、代码统计与文件发现",
   "author": "OML Team",

@@ -1,6 +1,6 @@
 {
   "name": "reviewer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "subagent",
   "description": "Code Reviewer Subagent for code quality review, security auditing, style checking, and best practices validation",
   "author": "OML Team",

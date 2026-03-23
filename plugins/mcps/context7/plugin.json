@@ -1,6 +1,6 @@
 {
   "name": "context7",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "mcp",
   "description": "Context7 MCP 服务 - 文档查询与代码上下文增强",
   "author": "OML Team",

@@ -1,6 +1,6 @@
 {
   "name": "qwen-key-switcher",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "type": "utility",
   "description": "Qwen API Key manager - Store and switch between multiple free API keys",
   "author": "OML Team",

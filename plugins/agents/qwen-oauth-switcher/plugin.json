@@ -1,6 +1,6 @@
 {
   "name": "qwen-oauth-switcher",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "type": "utility",
   "description": "Qwen OAuth account switcher - Manage multiple free accounts via oauth_creds.json switching",
   "author": "OML Team",

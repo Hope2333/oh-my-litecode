@@ -1,6 +1,6 @@
 # Oh-My-Litecode (OML)
 
-**Version: 0.1.0-alpha**
+**Version: 0.2.0-alpha**
 
 A unified toolchain manager for cross-platform AI-assisted development environments on Termux/Android.
 

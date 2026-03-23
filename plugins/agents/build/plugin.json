@@ -1,6 +1,6 @@
 {
   "name": "build",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "type": "agent",
   "description": "构建代理 - 项目构建、清理、状态和日志管理",
   "author": "OML Team",
