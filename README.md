@@ -75,3 +75,27 @@ MIT License - see [LICENSE](LICENSE) for details.
 - [OpenCode](https://github.com/anomalyco/opencode) - MIT License
 - [Bun](https://github.com/oven-sh/bun) - MIT License
 - [bun-termux-loader](https://github.com/kaan-escober/bun-termux-loader) - MIT License
+
+---
+
+## 📁 Archive
+
+本仓库包含历史版本存档于 `archive/` 目录：
+
+- **[archive/legacy-qwenx/](archive/legacy-qwenx/)** - 实验室版 qwenx (已废弃)
+  - **状态**: ❌ 已废弃，不推荐新开发
+  - **用途**: 历史参考、迁移指南
+  - **推荐**: 使用 [0.1.0](https://github.com/Hope2333/oh-my-litecode/releases/tag/0.1.0) 版本
+  - **详情**: [archive/ARCHIVE-MANIFEST.md](archive/ARCHIVE-MANIFEST.md)
+
+---
+
+## 🏷️ 版本标签
+
+| 版本 | 语言 | 状态 | 推荐 |
+|------|------|------|------|
+| **[0.1.0](https://github.com/Hope2333/oh-my-litecode/releases/tag/0.1.0)** | TS + Py + Bash | ✅ 当前 | ⭐⭐⭐⭐⭐ |
+| **[0.1.0-bash](https://github.com/Hope2333/oh-my-litecode/releases/tag/0.1.0-bash)** | 100% Bash | ✅ 保留 | ⭐⭐⭐ |
+| **legacy-qwenx** | 100% Bash | ❌ 废弃 | ❌ |
+
+**详情**: [docs/TAGS.md](docs/TAGS.md)
