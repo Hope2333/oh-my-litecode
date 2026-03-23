@@ -97,7 +97,7 @@ run_test "Add missing name" "$MAIN_SH add" 1
 
 # Create test account
 mkdir -p "$TEST_OAUTH_DIR/accounts/test"
-echo '{"test": true, "created_at": "2026-03-23"}' > "$TEST_OAUTH_DIR/accounts/test/settings.json"
+echo '{"test": true, "created_at": "2026-03-23"}' > "$TEST_OAUTH_DIR/accounts/test/oauth_creds.json"
 
 # Current tests
 echo ""
@@ -114,14 +114,14 @@ run_test_contains "Current after use" "$MAIN_SH current" "test"
 echo ""
 echo "--- Rotate Tests ---"
 mkdir -p "$TEST_OAUTH_DIR/accounts/test2"
-echo '{"test": true}' > "$TEST_OAUTH_DIR/accounts/test2/settings.json"
+echo '{"test": true}' > "$TEST_OAUTH_DIR/accounts/test2/oauth_creds.json"
 run_test_contains "Rotate" "$MAIN_SH rotate" "Switched to account"
 
 # Backup tests
 echo ""
 echo "--- Backup Tests ---"
 mkdir -p "$TEST_OAUTH_DIR/qwen-config"
-echo '{"backup": true}' > "$TEST_OAUTH_DIR/qwen-config/settings.json"
+echo '{"backup": true}' > "$TEST_OAUTH_DIR/qwen-config/oauth_creds.json"
 run_test_contains "Backup" "$MAIN_SH backup" "Backup created"
 
 # Remove tests

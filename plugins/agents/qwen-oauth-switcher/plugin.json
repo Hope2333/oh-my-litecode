@@ -2,7 +2,7 @@
   "name": "qwen-oauth-switcher",
   "version": "1.0.0",
   "type": "utility",
-  "description": "Qwen OAuth account switcher - Manage multiple free accounts via config file switching",
+  "description": "Qwen OAuth account switcher - Manage multiple free accounts via oauth_creds.json switching",
   "author": "OML Team",
   "license": "MIT",
   "platforms": ["termux", "gnu-linux"],
@@ -11,7 +11,7 @@
     "QWEN_OAUTH_DIR": {
       "required": false,
       "default": "~/.oml/qwen-oauth",
-      "description": "OAuth config storage directory"
+      "description": "OAuth credentials storage directory"
     },
     "QWEN_CONFIG_DIR": {
       "required": false,
@@ -27,7 +27,7 @@
     },
     {
       "name": "add",
-      "description": "Add new OAuth account (login to get config)",
+      "description": "Add new OAuth account (copy current oauth_creds.json)",
       "handler": "main.sh add"
     },
     {
@@ -52,7 +52,7 @@
     },
     {
       "name": "backup",
-      "description": "Backup current config",
+      "description": "Backup current oauth_creds.json",
       "handler": "main.sh backup"
     },
     {
@@ -63,8 +63,8 @@
   ],
   "features": {
     "multiAccount": true,
-    "fileSwitching": true,
+    "oauthFileSwitching": true,
     "autoBackup": true,
-    "configCopy": true
+    "credentialManagement": true
   }
 }

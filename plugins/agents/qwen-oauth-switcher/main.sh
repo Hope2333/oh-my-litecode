@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Qwen OAuth Switcher - Manage multiple free accounts via config file switching
+# Qwen OAuth Switcher - Manage multiple free accounts via oauth_creds.json switching
 #
 # Principle:
-#   Store multiple OAuth config files, switch by copying to Qwen config directory
+#   Store multiple oauth_creds.json files, switch by copying to Qwen config directory
 #
 # Storage: ~/.oml/qwen-oauth/
-#   - accounts/<name>/settings.json  # OAuth config for each account
-#   - current                        # Current active account name
-#   - backups/<timestamp>/           # Config backups
+#   - accounts/<name>/oauth_creds.json  # OAuth credentials for each account
+#   - current                           # Current active account name
+#   - backups/<timestamp>/              # oauth_creds.json backups
 #
 # Usage:
 #   qwen-oauth list              # List all accounts
@@ -63,7 +63,7 @@ get_current_account() {
     cat "${CURRENT_FILE}" 2>/dev/null || echo ""
 }
 
-# Add new account
+# Add new account (copy current oauth_creds.json)
 cmd_add() {
     local name="${1:-}"
     
@@ -78,67 +78,32 @@ cmd_add() {
         return 1
     fi
     
+    local oauth_creds="${QWEN_CONFIG_DIR}/oauth_creds.json"
+    
+    if [[ ! -f "$oauth_creds" ]]; then
+        echo -e "${RED}Error: oauth_creds.json not found${NC}"
+        echo "Please login to Qwen Code first to generate oauth_creds.json"
+        echo "Location: ${oauth_creds}"
+        return 1
+    fi
+    
     echo -e "${BLUE}Adding new OAuth account: ${name}${NC}"
-    echo ""
-    echo "Instructions:"
-    echo "1. Login to Qwen Code with this account in a browser"
-    echo "2. Copy the config file from ~/.local/home/qwenx/.qwen/settings.json"
-    echo "3. Paste it below (Ctrl+D to finish):"
     echo ""
     
     # Create account directory
     mkdir -p "${ACCOUNTS_DIR}/${name}"
     
-    # Read config from stdin
-    local config_file="${ACCOUNTS_DIR}/${name}/settings.json"
-    cat > "$config_file"
+    # Copy current oauth_creds.json
+    cp "$oauth_creds" "${ACCOUNTS_DIR}/${name}/oauth_creds.json"
+    chmod 600 "${ACCOUNTS_DIR}/${name}/oauth_creds.json"
     
-    # Validate JSON
-    if ! jq empty "$config_file" 2>/dev/null; then
-        echo -e "${RED}Error: Invalid JSON${NC}"
-        rm -f "$config_file"
-        return 1
-    fi
-    
-    # Set permissions
-    chmod 600 "$config_file"
-    
-    echo ""
     echo -e "${GREEN}✓ Account added: ${name}${NC}"
+    echo ""
+    echo "OAuth credentials copied from: ${oauth_creds}"
+    echo "Stored in: ${ACCOUNTS_DIR}/${name}/oauth_creds.json"
     echo ""
     echo "To activate this account, run:"
     echo "  qwen-oauth use ${name}"
-}
-
-# Import account from existing config
-cmd_import() {
-    local name="${1:-}"
-    local source="${2:-}"
-    
-    if [[ -z "$name" ]] || [[ -z "$source" ]]; then
-        echo -e "${RED}Error: Name and source required${NC}"
-        echo "Usage: qwen-oauth import <name> <source_config>"
-        return 1
-    fi
-    
-    if account_exists "$name"; then
-        echo -e "${RED}Error: Account '${name}' already exists${NC}"
-        return 1
-    fi
-    
-    if [[ ! -f "$source" ]]; then
-        echo -e "${RED}Error: Source config not found: ${source}${NC}"
-        return 1
-    fi
-    
-    # Create account directory
-    mkdir -p "${ACCOUNTS_DIR}/${name}"
-    
-    # Copy config
-    cp "$source" "${ACCOUNTS_DIR}/${name}/settings.json"
-    chmod 600 "${ACCOUNTS_DIR}/${name}/settings.json"
-    
-    echo -e "${GREEN}✓ Account imported: ${name}${NC}"
 }
 
 # List all accounts
@@ -158,7 +123,6 @@ cmd_list() {
         echo "To add an account:"
         echo "  1. Login to Qwen Code with the account"
         echo "  2. Run: qwen-oauth add <name>"
-        echo "  3. Paste your settings.json content"
         return 0
     fi
     
@@ -173,11 +137,11 @@ cmd_list() {
             marker="* "
         fi
         
-        local config_file="${account_dir}settings.json"
+        local oauth_file="${account_dir}oauth_creds.json"
         local added_at="Unknown"
         
-        if [[ -f "$config_file" ]]; then
-            added_at=$(jq -r '.created_at // "Unknown"' "$config_file" 2>/dev/null || echo "Unknown")
+        if [[ -f "$oauth_file" ]]; then
+            added_at=$(jq -r '.created_at // .timestamp // "Unknown"' "$oauth_file" 2>/dev/null || echo "Unknown")
         fi
         
         echo -e "${marker}${GREEN}${name}${NC}"
@@ -205,17 +169,18 @@ cmd_use() {
         return 1
     fi
     
-    # Backup current config if exists
-    if [[ -f "${QWEN_CONFIG_DIR}/settings.json" ]]; then
+    # Backup current oauth_creds.json if exists
+    local current_oauth="${QWEN_CONFIG_DIR}/oauth_creds.json"
+    if [[ -f "$current_oauth" ]]; then
         cmd_backup silent
     fi
     
     # Create Qwen config directory if needed
     mkdir -p "${QWEN_CONFIG_DIR}"
     
-    # Copy account config to Qwen config directory
-    cp "${ACCOUNTS_DIR}/${name}/settings.json" "${QWEN_CONFIG_DIR}/settings.json"
-    chmod 600 "${QWEN_CONFIG_DIR}/settings.json"
+    # Copy account's oauth_creds.json to Qwen config directory
+    cp "${ACCOUNTS_DIR}/${name}/oauth_creds.json" "${QWEN_CONFIG_DIR}/oauth_creds.json"
+    chmod 600 "${QWEN_CONFIG_DIR}/oauth_creds.json"
     
     # Save current account
     echo "$name" > "${CURRENT_FILE}"
@@ -223,7 +188,7 @@ cmd_use() {
     
     echo -e "${GREEN}✓ Switched to account: ${name}${NC}"
     echo ""
-    echo "Config copied to: ${QWEN_CONFIG_DIR}/settings.json"
+    echo "OAuth credentials copied to: ${QWEN_CONFIG_DIR}/oauth_creds.json"
     echo ""
     echo "Now you can use: oml qwen"
 }
@@ -244,18 +209,18 @@ cmd_current() {
         return 1
     fi
     
-    local config_file="${ACCOUNTS_DIR}/${current}/settings.json"
+    local oauth_file="${ACCOUNTS_DIR}/${current}/oauth_creds.json"
     local added_at
     
-    if [[ -f "$config_file" ]]; then
-        added_at=$(jq -r '.created_at // "Unknown"' "$config_file" 2>/dev/null || echo "Unknown")
+    if [[ -f "$oauth_file" ]]; then
+        added_at=$(jq -r '.created_at // .timestamp // "Unknown"' "$oauth_file" 2>/dev/null || echo "Unknown")
     fi
     
     echo -e "${BLUE}Current OAuth Account:${NC}"
     echo ""
     echo -e "  Name: ${GREEN}${current}${NC}"
     echo "  Added: ${added_at}"
-    echo "  Config: ${QWEN_CONFIG_DIR}/settings.json"
+    echo "  OAuth File: ${QWEN_CONFIG_DIR}/oauth_creds.json"
 }
 
 # Remove account
@@ -330,13 +295,14 @@ cmd_rotate() {
     cmd_use "$next_account"
 }
 
-# Backup current config
+# Backup current oauth_creds.json
 cmd_backup() {
     local silent="${1:-}"
     
-    if [[ ! -f "${QWEN_CONFIG_DIR}/settings.json" ]]; then
+    local current_oauth="${QWEN_CONFIG_DIR}/oauth_creds.json"
+    if [[ ! -f "$current_oauth" ]]; then
         if [[ "$silent" != "silent" ]]; then
-            echo -e "${YELLOW}No config to backup${NC}"
+            echo -e "${YELLOW}No oauth_creds.json to backup${NC}"
         fi
         return 0
     fi
@@ -346,7 +312,7 @@ cmd_backup() {
     local backup_dir="${BACKUPS_DIR}/${timestamp}"
     
     mkdir -p "$backup_dir"
-    cp "${QWEN_CONFIG_DIR}/settings.json" "$backup_dir/"
+    cp "$current_oauth" "$backup_dir/oauth_creds.json"
     
     if [[ "$silent" != "silent" ]]; then
         echo -e "${GREEN}✓ Backup created: ${backup_dir}${NC}"
@@ -371,48 +337,43 @@ cmd_restore() {
         backup_dir="$backup"
     fi
     
-    if [[ ! -f "${backup_dir}/settings.json" ]]; then
+    if [[ ! -f "${backup_dir}/oauth_creds.json" ]]; then
         echo -e "${RED}Error: Backup not found: ${backup}${NC}"
         return 1
     fi
     
     # Restore
     mkdir -p "${QWEN_CONFIG_DIR}"
-    cp "${backup_dir}/settings.json" "${QWEN_CONFIG_DIR}/settings.json"
+    cp "${backup_dir}/oauth_creds.json" "${QWEN_CONFIG_DIR}/oauth_creds.json"
     
-    echo -e "${GREEN}✓ Config restored from: ${backup}${NC}"
+    echo -e "${GREEN}✓ OAuth credentials restored from: ${backup}${NC}"
 }
 
 # Show help
 show_help() {
     cat <<EOF
-Qwen OAuth Switcher - Manage multiple free accounts via config file switching
+Qwen OAuth Switcher - Manage multiple free accounts via oauth_creds.json switching
 
 Usage: qwen-oauth <command> [args]
 
 Commands:
   list                  List all OAuth accounts
-  add <name>            Add new account (paste settings.json)
-  import <name> <src>   Import account from existing config
+  add <name>            Add new account (copy current oauth_creds.json)
   use <name>            Switch to specified account
   current               Show current active account
   remove <name>         Remove OAuth account
   rotate                Rotate to next account
-  backup                Backup current config
+  backup                Backup current oauth_creds.json
   restore <backup>      Restore from backup
   help                  Show this help message
 
 Principle:
-  This tool manages multiple OAuth accounts by storing config files
-  and switching them by copying to ~/.local/home/qwenx/.qwen/settings.json
+  This tool manages OAuth accounts by storing oauth_creds.json files
+  and switching them by copying to ~/.local/home/qwenx/.qwen/oauth_creds.json
 
 Examples:
-  # Add account (interactive)
+  # Add account (copies current oauth_creds.json)
   qwen-oauth add work
-  # Then paste your settings.json content
-
-  # Import from existing config
-  qwen-oauth import personal ~/.local/home/qwenx/.qwen/settings.json
 
   # List accounts
   qwen-oauth list
@@ -423,7 +384,7 @@ Examples:
   # Rotate to next account
   qwen-oauth rotate
 
-  # Backup current config
+  # Backup current oauth_creds.json
   qwen-oauth backup
 
   # Restore from backup
@@ -431,9 +392,9 @@ Examples:
 
 Storage:
   ~/.oml/qwen-oauth/
-  ├── accounts/<name>/settings.json  # OAuth config for each account
-  ├── current                        # Current account name
-  └── backups/<timestamp>/           # Config backups
+  ├── accounts/<name>/oauth_creds.json  # OAuth credentials for each account
+  ├── current                           # Current account name
+  └── backups/<timestamp>/              # oauth_creds.json backups
 
 Security:
   - Directory permissions: 700 (owner only)
