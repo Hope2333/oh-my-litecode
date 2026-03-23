@@ -124,6 +124,31 @@ Commands:
     cancel --task-id "<id>"     Cancel running task
     wait                        Wait for all tasks
 
+  qwen      ${qwen_desc}
+    deploy            Deploy Qwenx with configuration
+    update            Update Qwenx
+    status            Show Qwenx status
+    config            Edit Qwenx configuration
+
+  install   ${install_desc}
+    [options]         Run OML installer
+
+  update    ${update_desc}
+    self              Update OML core
+    plugins           Update plugins
+    qwen              Update Qwenx
+    all               Update everything
+    status            Show update status
+    check             Check for updates
+
+  supertui  ${supertui_desc}
+    Interactive TUI for OML management
+    spawn <agent> --task "<desc>" [--scope "<pattern>"] [--background]
+    status [filter]             Show task status (all|running|pending)
+    logs --task-id "<id>" [-f]  Show task logs
+    cancel --task-id "<id>"     Cancel running task
+    wait                        Wait for all tasks
+
   mcps        MCP service management
     context7 <action>           Context7 MCP service
     grep-app <action>           Grep.app MCP service (code search)

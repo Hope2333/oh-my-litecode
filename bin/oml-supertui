@@ -1,0 +1,353 @@
+#!/usr/bin/env bash
+# OML SuperTUI - Text User Interface for OML
+# Inspired by nmtui
+#
+# Usage: oml supertui
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+WHITE='\033[0;37m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+# UI State
+SELECTED=0
+TOTAL_ITEMS=0
+RUNNING=true
+
+# System info
+SYSTEM_INFO=""
+
+# Source libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="${SCRIPT_DIR}/../lib"
+
+if [[ -f "${LIB_DIR}/system-detect.sh" ]]; then
+    source "${LIB_DIR}/system-detect.sh"
+    detect_all
+    SYSTEM_INFO="${SYSTEM:-unknown} (${ARCH:-unknown})"
+fi
+
+# Hide cursor
+hide_cursor() {
+    echo -ne "\e[?25l"
+}
+
+# Show cursor
+show_cursor() {
+    echo -ne "\e[?25h"
+}
+
+# Clear screen
+clear_screen() {
+    clear
+}
+
+# Move cursor
+move_cursor() {
+    local row=$1
+    local col=$2
+    echo -ne "\e[${row};${col}H"
+}
+
+# Draw box
+draw_box() {
+    local row=$1
+    local col=$2
+    local width=$3
+    local height=$4
+    local title="${5:-}"
+    
+    # Top border
+    move_cursor $row $col
+    echo -n "┌"
+    for ((i=0; i<width-2; i++)); do
+        echo -n "─"
+    done
+    echo -n "┐"
+    
+    # Title
+    if [[ -n "$title" ]]; then
+        move_cursor $row $((col + (width - ${#title} - 2) / 2))
+        echo -n " $title "
+    fi
+    
+    # Side borders
+    for ((i=1; i<height-1; i++)); do
+        move_cursor $((row + i)) $col
+        echo -n "│"
+        move_cursor $((row + i)) $((col + width - 1))
+        echo -n "│"
+    done
+    
+    # Bottom border
+    move_cursor $((row + height - 1)) $col
+    echo -n "└"
+    for ((i=0; i<width-2; i++)); do
+        echo -n "─"
+    done
+    echo -n "┘"
+}
+
+# Draw button
+draw_button() {
+    local row=$1
+    local col=$2
+    local text="$3"
+    local selected="${4:-false}"
+    
+    move_cursor $row $col
+    
+    if [[ "$selected" == "true" ]]; then
+        echo -e "${BOLD}${WHITE}[●] ${text}${NC}"
+    else
+        echo -e "${CYAN}[ ] ${text}${NC}"
+    fi
+}
+
+# Draw text
+draw_text() {
+    local row=$1
+    local col=$2
+    local text="$3"
+    local color="${4:-$WHITE}"
+    
+    move_cursor $row $col
+    echo -e "${color}${text}${NC}"
+}
+
+# Draw main menu
+draw_main_menu() {
+    clear_screen
+    
+    # Header
+    draw_text 1 2 "╔═══════════════════════════════════════════╗" "$BLUE"
+    draw_text 2 2 "║     OML SuperTUI v1.0.0                   ║" "$BLUE"
+    draw_text 3 2 "╚═══════════════════════════════════════════╝" "$BLUE"
+    
+    # System info
+    draw_text 5 4 "System: ${SYSTEM_INFO}" "$YELLOW"
+    draw_text 6 4 "OML Root: ${OML_ROOT:-~/develop/oh-my-litecode}" "$YELLOW"
+    
+    # Menu box
+    draw_box 8 2 45 10 "Main Menu"
+    
+    # Menu items
+    local items=("Install OML" "Update OML" "Manage Plugins" "Qwenx Deployment" "Configuration" "System Info" "Exit")
+    TOTAL_ITEMS=${#items[@]}
+    
+    for i in "${!items[@]}"; do
+        local selected="false"
+        if [[ $i -eq $SELECTED ]]; then
+            selected="true"
+        fi
+        draw_button $((10 + i)) 4 "${items[$i]}" "$selected"
+    done
+    
+    # Footer
+    draw_text 20 4 "↑↓ Navigate | Enter Select | Esc Exit" "$YELLOW"
+    
+    # Status bar
+    draw_box 22 2 45 4 "Status"
+    draw_text 23 4 "Ready" "$GREEN"
+}
+
+# Draw install screen
+draw_install_screen() {
+    clear_screen
+    
+    draw_text 1 2 "╔═══════════════════════════════════════════╗" "$BLUE"
+    draw_text 2 2 "║     OML Installation                      ║" "$BLUE"
+    draw_text 3 2 "╚═══════════════════════════════════════════╝" "$BLUE"
+    
+    draw_box 5 2 45 15 "Installation Options"
+    
+    draw_button 7 4 "Install OML (Default)" "true"
+    draw_button 9 4 "Install with Qwenx" "false"
+    draw_button 11 4 "Custom Installation" "false"
+    draw_button 13 4 "← Back" "false"
+    
+    draw_text 17 4 "Press Enter to install" "$YELLOW"
+    draw_text 18 4 "Press Esc to cancel" "$YELLOW"
+}
+
+# Draw update screen
+draw_update_screen() {
+    clear_screen
+    
+    draw_text 1 2 "╔═══════════════════════════════════════════╗" "$BLUE"
+    draw_text 2 2 "║     OML Update                            ║" "$BLUE"
+    draw_text 3 2 "╚═══════════════════════════════════════════╝" "$BLUE"
+    
+    draw_box 5 2 45 12 "Update Options"
+    
+    draw_button 7 4 "Update OML Core" "true"
+    draw_button 9 4 "Update Plugins" "false"
+    draw_button 11 4 "Update All" "false"
+    draw_button 13 4 "← Back" "false"
+    
+    draw_text 16 4 "Checking for updates..." "$YELLOW"
+}
+
+# Draw system info screen
+draw_system_info() {
+    clear_screen
+    
+    draw_text 1 2 "╔═══════════════════════════════════════════╗" "$BLUE"
+    draw_text 2 2 "║     System Information                    ║" "$BLUE"
+    draw_text 3 2 "╚═══════════════════════════════════════════╝" "$BLUE"
+    
+    draw_box 5 2 45 15 "System Details"
+    
+    if type detect_all >/dev/null 2>&1; then
+        detect_all
+    fi
+    
+    draw_text 7 4 "System: ${SYSTEM:-unknown}" "$WHITE"
+    draw_text 8 4 "Package Manager: ${PKG_MANAGER:-unknown}" "$WHITE"
+    draw_text 9 4 "Architecture: ${ARCH:-unknown}" "$WHITE"
+    draw_text 10 4 "Shell: ${SHELL_TYPE:-unknown}" "$WHITE"
+    draw_text 11 4 "OS: ${OS_VERSION:-unknown}" "$WHITE"
+    
+    draw_button 14 4 "← Back" "true"
+}
+
+# Handle main menu navigation
+handle_main_menu() {
+    case $SELECTED in
+        0)
+            # Install OML
+            draw_install_screen
+            ;;
+        1)
+            # Update OML
+            draw_update_screen
+            ;;
+        2)
+            # Manage Plugins
+            if [[ -f "${OML_ROOT}/bin/oml" ]]; then
+                "${OML_ROOT}/bin/oml" plugins list
+            fi
+            read -p "Press Enter to continue..."
+            draw_main_menu
+            ;;
+        3)
+            # Qwenx Deployment
+            if [[ -f "${OML_ROOT}/modules/qwen-deploy.sh" ]]; then
+                bash "${OML_ROOT}/modules/qwen-deploy.sh" status
+            fi
+            read -p "Press Enter to continue..."
+            draw_main_menu
+            ;;
+        4)
+            # Configuration
+            if [[ -f "${HOME}/.oml/config.json" ]]; then
+                ${EDITOR:-nano} "${HOME}/.oml/config.json"
+            fi
+            draw_main_menu
+            ;;
+        5)
+            # System Info
+            draw_system_info
+            ;;
+        6)
+            # Exit
+            RUNNING=false
+            ;;
+    esac
+}
+
+# Handle keyboard input
+handle_input() {
+    local key
+    read -rsn1 key
+    
+    case "$key" in
+        $'\x1b')
+            read -rsn2 key
+            case "$key" in
+                '[A') # Up arrow
+                    SELECTED=$(( (SELECTED - 1 + TOTAL_ITEMS) % TOTAL_ITEMS ))
+                    ;;
+                '[B') # Down arrow
+                    SELECTED=$(( (SELECTED + 1) % TOTAL_ITEMS ))
+                    ;;
+            esac
+            ;;
+        '') # Enter
+            handle_main_menu
+            ;;
+        'q'|'Q')
+            RUNNING=false
+            ;;
+    esac
+}
+
+# Cleanup on exit
+cleanup() {
+    show_cursor
+    clear_screen
+    echo "Goodbye!"
+}
+
+# Main loop
+main_loop() {
+    hide_cursor
+    trap cleanup EXIT
+    
+    while $RUNNING; do
+        draw_main_menu
+        handle_input
+    done
+}
+
+# Print help
+print_help() {
+    cat <<EOF
+OML SuperTUI - Text User Interface for OML
+
+Usage: oml supertui
+
+Controls:
+  ↑/↓     Navigate menu
+  Enter   Select option
+  Esc/Q   Exit
+  H       Show help
+
+Features:
+  - Install OML
+  - Update OML
+  - Manage Plugins
+  - Qwenx Deployment
+  - Configuration
+  - System Information
+
+EOF
+}
+
+# Main function
+main() {
+    local command="${1:-}"
+    
+    case "$command" in
+        help|--help|-h)
+            print_help
+            ;;
+        "")
+            main_loop
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            print_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
