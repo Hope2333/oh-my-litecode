@@ -1,0 +1,61 @@
+{
+  "name": "git",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Git operations MCP service - Safe git repository operations",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "git"],
+  "commands": [
+    {
+      "name": "status",
+      "description": "Show repository status",
+      "handler": "main.sh status"
+    },
+    {
+      "name": "diff",
+      "description": "Show changes",
+      "handler": "main.sh diff"
+    },
+    {
+      "name": "add",
+      "description": "Stage files",
+      "handler": "main.sh add"
+    },
+    {
+      "name": "commit",
+      "description": "Commit changes",
+      "handler": "main.sh commit"
+    },
+    {
+      "name": "log",
+      "description": "Show commit log",
+      "handler": "main.sh log"
+    },
+    {
+      "name": "branch",
+      "description": "List or create branches",
+      "handler": "main.sh branch"
+    },
+    {
+      "name": "checkout",
+      "description": "Switch branches",
+      "handler": "main.sh checkout"
+    },
+    {
+      "name": "push",
+      "description": "Push to remote",
+      "handler": "main.sh push"
+    },
+    {
+      "name": "pull",
+      "description": "Pull from remote",
+      "handler": "main.sh pull"
+    }
+  ],
+  "security": {
+    "requireGitRepo": true,
+    "requireConfirm": ["commit", "push", "checkout"]
+  }
+}

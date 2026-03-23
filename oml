@@ -19,7 +19,7 @@ fi
 
 set -euo pipefail
 
-OML_VERSION="0.1.0-alpha"
+OML_VERSION="0.2.0"
 OML_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OML_TOOLS="$OML_ROOT/tools"
 OML_HOTFIX="$OML_ROOT/hotfix"

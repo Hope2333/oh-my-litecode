@@ -1,0 +1,59 @@
+{
+  "name": "filesystem",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Filesystem operations MCP service - Safe file and directory operations",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3", "jq"],
+  "env": {
+    "FS_ROOT": {
+      "required": false,
+      "default": "",
+      "description": "Restrict operations to this root directory"
+    }
+  },
+  "commands": [
+    {
+      "name": "read",
+      "description": "Read file content",
+      "handler": "main.sh read"
+    },
+    {
+      "name": "write",
+      "description": "Write content to file",
+      "handler": "main.sh write"
+    },
+    {
+      "name": "list",
+      "description": "List directory contents",
+      "handler": "main.sh list"
+    },
+    {
+      "name": "mkdir",
+      "description": "Create directory",
+      "handler": "main.sh mkdir"
+    },
+    {
+      "name": "delete",
+      "description": "Delete file or directory",
+      "handler": "main.sh delete"
+    },
+    {
+      "name": "search",
+      "description": "Search for files",
+      "handler": "main.sh search"
+    },
+    {
+      "name": "info",
+      "description": "Get file/directory info",
+      "handler": "main.sh info"
+    }
+  ],
+  "security": {
+    "allowedRoots": ["~", "$HOME", "$PWD"],
+    "blockedPaths": ["/etc", "/usr", "/bin", "/sbin", "/data/data/com.termux/files/usr"],
+    "requireConfirm": ["delete", "write"]
+  }
+}
