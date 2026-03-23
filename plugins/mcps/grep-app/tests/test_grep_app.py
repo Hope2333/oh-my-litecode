@@ -1,4 +1,4 @@
-"""Tests for Grep-App MCP"""
+"""Tests for Grep-App MCP - Local Code Search"""
 
 import asyncio
 import json
@@ -6,7 +6,6 @@ import pytest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-# Import the module to test
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -21,7 +20,7 @@ class TestSearchOptions:
         assert options.path == "."
         assert options.extensions is None
         assert options.max_results == 100
-        assert len(options.exclude_dirs) > 0
+        assert len(options.exclude_dirs) > 5
     
     def test_custom_values(self):
         options = SearchOptions(
@@ -29,10 +28,12 @@ class TestSearchOptions:
             path="/src",
             extensions=["py", "js"],
             max_results=50,
+            case_sensitive=True,
         )
         assert options.path == "/src"
         assert options.extensions == ["py", "js"]
         assert options.max_results == 50
+        assert options.case_sensitive is True
 
 
 class TestGrepAppMCP:
@@ -46,30 +47,39 @@ class TestGrepAppMCP:
     def test_dir(self):
         """Create test directory with sample files"""
         with TemporaryDirectory() as tmpdir:
-            # Create test files in a subdirectory to avoid grep on the temp dir itself
             src_dir = Path(tmpdir) / "src"
             src_dir.mkdir()
-            (src_dir / "test.py").write_text("def hello():\n    pass\n")
-            (src_dir / "test.js").write_text("function hello() {}\n")
+            (src_dir / "test.py").write_text("def hello():\n    pass\n\nasync def world():\n    pass\n")
+            (src_dir / "test.js").write_text("function hello() {}\n\nasync function world() {}\n")
             yield src_dir
     
     @pytest.mark.asyncio
     async def test_list_tools(self, mcp):
-        """Test list_tools handler"""
-        # The handler is registered with the server
-        # We can't directly test it without mocking the server
+        """Test list_tools handler exists"""
         assert mcp.server is not None
     
     @pytest.mark.asyncio
-    async def test_grep_search_intent(self, mcp, test_dir):
-        """Test natural language search"""
+    async def test_grep_search_intent_python(self, mcp, test_dir):
+        """Test natural language search for Python"""
         result = await mcp._grep_search_intent({
-            "query": "find all python functions",
+            "query": "find all python async functions",
             "path": str(test_dir),
         })
         
         assert "content" in result
-        assert len(result["content"]) > 0
+        content = json.loads(result["content"][0]["text"])
+        assert isinstance(content, list)
+    
+    @pytest.mark.asyncio
+    async def test_grep_search_intent_javascript(self, mcp, test_dir):
+        """Test natural language search for JavaScript"""
+        result = await mcp._grep_search_intent({
+            "query": "find all javascript async functions",
+            "path": str(test_dir),
+            "extensions": ["js"],
+        })
+        
+        assert "content" in result
     
     @pytest.mark.asyncio
     async def test_grep_regex(self, mcp, test_dir):
@@ -89,22 +99,25 @@ class TestGrepAppMCP:
         """Test count matches"""
         result = await mcp._grep_count({
             "pattern": "hello",
-            "path": test_dir,
+            "path": str(test_dir),
         })
         
         assert "content" in result
+        # Count output contains numbers
+        assert any(c.isdigit() for c in result["content"][0]["text"])
     
     @pytest.mark.asyncio
     async def test_grep_files_with_matches(self, mcp, test_dir):
         """Test list files with matches"""
         result = await mcp._grep_files_with_matches({
             "pattern": "hello",
-            "path": test_dir,
+            "path": str(test_dir),
         })
         
         assert "content" in result
         content = json.loads(result["content"][0]["text"])
         assert isinstance(content, list)
+        assert len(content) > 0
 
 
 class TestEnableDisable:
@@ -125,6 +138,7 @@ class TestEnableDisable:
         settings = json.loads(temp_settings.read_text())
         assert "mcpServers" in settings
         assert "grep-app" in settings["mcpServers"]
+        assert settings["mcpServers"]["grep-app"]["command"] == "python"
     
     def test_disable_grep_app(self, temp_settings):
         """Test disable grep-app"""
@@ -136,3 +150,10 @@ class TestEnableDisable:
         
         settings = json.loads(temp_settings.read_text())
         assert "grep-app" not in settings.get("mcpServers", {})
+    
+    def test_status_not_configured(self, temp_settings, capsys):
+        """Test status when not configured"""
+        from grep_app_mcp import print_status
+        print_status(str(temp_settings))
+        captured = capsys.readouterr()
+        assert "not configured" in captured.out

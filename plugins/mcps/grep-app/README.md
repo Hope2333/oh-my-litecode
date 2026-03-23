@@ -1,15 +1,15 @@
-# Grep-App MCP - Python Implementation
+# Grep-App MCP - Local Code Search
 
-Grep-App MCP service for OML (Oh-My-Litecode) - Python implementation.
+**Note**: This is a **local code search** MCP service inspired by [grep.app](https://grep.app), but runs entirely on your local machine.
 
 ## Features
 
-- ✅ Natural language code search
+- ✅ Search local code with natural language
 - ✅ Regular expression search
+- ✅ Search across GitHub repositories (via grep.app API)
 - ✅ Count matches
 - ✅ List matching files
 - ✅ MCP stdio protocol
-- ✅ Type-safe with Pydantic
 
 ## Installation
 
@@ -26,7 +26,7 @@ pip install -e .
 python -m grep_app_mcp --enable
 ```
 
-### MCP Stdio Mode (for Qwen Code)
+### MCP Stdio Mode
 
 ```bash
 python -m grep_app_mcp --mode stdio
@@ -44,34 +44,18 @@ python -m grep_app_mcp --mode status
 python -m grep_app_mcp --mode disable
 ```
 
-## Development
-
-```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Run with coverage
-pytest --cov=grep_app_mcp
-```
-
 ## Configuration
 
-Grep-App MCP stores configuration in `~/.qwen/settings.json`:
+### Local Search (Default)
 
-```json
-{
-  "mcpServers": {
-    "grep-app": {
-      "command": "python",
-      "args": ["-m", "grep_app_mcp", "--mode", "stdio"],
-      "protocol": "mcp",
-      "enabled": true
-    }
-  }
-}
+Searches your local codebase using GNU grep.
+
+### Remote Search (Optional)
+
+To search GitHub repositories via grep.app API:
+
+```bash
+python -m grep_app_mcp --enable --remote-api-key "your-github-token"
 ```
 
 ## API
@@ -83,17 +67,9 @@ Grep-App MCP stores configuration in `~/.qwen/settings.json`:
 Natural language code search.
 
 **Parameters:**
-- `query` (required): Search query (e.g., "find all Python functions")
-- `path` (optional): Search path (default: ".")
-- `extensions` (optional): File extensions (e.g., ["py", "js"])
-
-**Example:**
-```python
-result = await mcp.call_tool('grep_search_intent', {
-    'query': 'find all async functions',
-    'extensions': ['py'],
-})
-```
+- `query` (required): Search query
+- `path` (optional): Local search path (default: ".")
+- `extensions` (optional): File extensions
 
 #### grep_regex
 
@@ -104,71 +80,22 @@ Regular expression search.
 - `path` (optional): Search path
 - `extensions` (optional): File extensions
 
-**Example:**
-```python
-result = await mcp.call_tool('grep_regex', {
-    'pattern': 'def \\w+\\(',
-    'extensions': ['py'],
-})
-```
-
 #### grep_count
 
 Count pattern matches.
-
-**Parameters:**
-- `pattern` (required): Pattern to count
-- `path` (optional): Search path
 
 #### grep_files_with_matches
 
 List files with matches.
 
-**Parameters:**
-- `pattern` (required): Pattern to search
-- `path` (optional): Search path
+## Difference from grep.app
 
-## Migration from Bash
-
-This Python implementation replaces the Bash version (`main.sh`).
-
-### Key Changes
-
-| Feature | Bash | Python |
-|---------|------|--------|
-| MCP protocol | Manual stdio | Official MCP SDK |
-| Data validation | Manual parsing | Pydantic models |
-| Error handling | Exit codes | Exceptions |
-| Testing | Manual | pytest + asyncio |
-
-### Migration Guide
-
-1. **Backup existing config:**
-   ```bash
-   cp ~/.qwen/settings.json ~/.qwen/settings.json.bak
-   ```
-
-2. **Install Python version:**
-   ```bash
-   cd plugins/mcps/grep-app
-   pip install -e .
-   ```
-
-3. **Enable new version:**
-   ```bash
-   python -m grep_app_mcp --enable
-   ```
-
-4. **Test:**
-   ```bash
-   python -m grep_app_mcp --mode status
-   ```
-
-## System Requirements
-
-- Python 3.10+
-- GNU grep
-- GNU find
+| Feature | grep.app | This MCP |
+|---------|----------|----------|
+| Search Target | GitHub repositories | Local codebase |
+| Backend | Vercel servers | GNU grep (local) |
+| API | Private | Open source (MIT) |
+| Cost | Free | Free |
 
 ## License
 

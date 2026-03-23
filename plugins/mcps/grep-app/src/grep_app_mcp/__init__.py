@@ -1,17 +1,11 @@
 """
-Grep-App MCP Service - Python Implementation
+Grep-App MCP Service - Local Code Search
 
-Provides MCP (Model Context Protocol) service for code search and analysis.
+Inspired by grep.app (https://grep.app) but runs locally.
+Provides MCP service for code search using GNU grep.
 
 Usage:
-    # MCP stdio mode (for Qwen Code integration)
     python -m grep_app_mcp --mode stdio
-    
-    # HTTP mode
-    python -m grep_app_mcp --mode http --port 8765
-    
-    # Enable in Qwen Code
-    python -m grep_app_mcp --enable
 """
 
 import asyncio
@@ -20,7 +14,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -28,12 +22,13 @@ from pydantic import BaseModel, Field
 
 
 class SearchOptions(BaseModel):
-    """Search options for grep-app"""
+    """Search options"""
     query: str
     path: str = "."
-    extensions: Optional[list[str]] = None
-    exclude_dirs: list[str] = Field(default_factory=lambda: [
-        "node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build"
+    extensions: Optional[List[str]] = None
+    exclude_dirs: List[str] = Field(default_factory=lambda: [
+        "node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build",
+        ".next", "coverage", ".nyc_output", "target", "bin", "obj"
     ])
     max_results: int = 100
     case_sensitive: bool = False
@@ -50,7 +45,7 @@ class GrepResult(BaseModel):
 
 
 class GrepAppMCP:
-    """Grep-App MCP Server"""
+    """Grep-App MCP Server - Local code search inspired by grep.app"""
     
     def __init__(self):
         self.server = Server("grep-app")
@@ -65,13 +60,13 @@ class GrepAppMCP:
                 "tools": [
                     {
                         "name": "grep_search_intent",
-                        "description": "Natural language code search",
+                        "description": "Natural language code search (local codebase)",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
                                 "query": {
                                     "type": "string",
-                                    "description": "Search query (e.g., 'find all Python functions')",
+                                    "description": "Search query (e.g., 'find all Python async functions')",
                                 },
                                 "path": {
                                     "type": "string",
@@ -88,7 +83,7 @@ class GrepAppMCP:
                     },
                     {
                         "name": "grep_regex",
-                        "description": "Regular expression search",
+                        "description": "Regular expression search in local files",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
@@ -111,7 +106,7 @@ class GrepAppMCP:
                     },
                     {
                         "name": "grep_count",
-                        "description": "Count pattern matches",
+                        "description": "Count pattern matches in local files",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
@@ -129,7 +124,7 @@ class GrepAppMCP:
                     },
                     {
                         "name": "grep_files_with_matches",
-                        "description": "List files with matches",
+                        "description": "List local files with matches",
                         "inputSchema": {
                             "type": "object",
                             "properties": {
@@ -159,21 +154,29 @@ class GrepAppMCP:
             elif name == "grep_files_with_matches":
                 return await self._grep_files_with_matches(arguments)
             else:
-                return {"content": [{"type": "text", "text": f"Unknown tool: {name}"}], "isError": True}
+                return {
+                    "content": [{"type": "text", "text": f"Unknown tool: {name}"}],
+                    "isError": True
+                }
     
-    async def _run_grep(self, pattern: str, path: str, options: SearchOptions) -> list[GrepResult]:
+    async def _run_grep(self, pattern: str, path: str, options: SearchOptions) -> List[GrepResult]:
         """Run grep command and parse results"""
-        cmd = ["grep", "-r", "-n", "--exclude-dir=" + "|".join(options.exclude_dirs)]
-
-        if options.case_sensitive:
+        cmd = [
+            "grep",
+            "-r",           # Recursive
+            "-n",           # Line numbers
+            "--exclude-dir=" + "|".join(options.exclude_dirs),
+        ]
+        
+        if not options.case_sensitive:
             cmd.append("-i")
         if options.use_regex:
             cmd.append("-E")
-
+        
         if options.extensions:
             for ext in options.extensions:
                 cmd.append(f"--include=*.{ext}")
-
+        
         cmd.extend([pattern, path])
         
         try:
@@ -194,9 +197,9 @@ class GrepAppMCP:
                 if ":" in line:
                     parts = line.split(":", 2)
                     if len(parts) >= 3:
-                        file, line_num, content = parts
+                        file_path, line_num, content = parts
                         results.append(GrepResult(
-                            file=file,
+                            file=file_path,
                             line=int(line_num),
                             column=0,
                             content=content.strip(),
@@ -210,17 +213,31 @@ class GrepAppMCP:
             raise RuntimeError("grep not found. Please install GNU grep.")
     
     async def _grep_search_intent(self, arguments: dict) -> dict:
-        """Natural language search"""
+        """Natural language search - converts to grep pattern"""
         query = arguments.get("query", "")
         path = arguments.get("path", ".")
         extensions = arguments.get("extensions")
         
-        # Simple heuristic: detect language from query
+        # Heuristic: detect language from query
         if not extensions:
-            if "python" in query.lower() or "def " in query:
+            query_lower = query.lower()
+            if "python" in query_lower or "def " in query_lower:
                 extensions = ["py"]
-            elif "javascript" in query.lower() or "function" in query:
+            elif "javascript" in query_lower or "typescript" in query_lower:
                 extensions = ["js", "ts", "jsx", "tsx"]
+            elif "rust" in query_lower:
+                extensions = ["rs"]
+            elif "go" in query_lower or "golang" in query_lower:
+                extensions = ["go"]
+        
+        # Extract keywords from natural language query
+        keywords = query.lower()
+        for word in ["find", "all", "search", "for", "show", "me", "the"]:
+            keywords = keywords.replace(word, " ")
+        keywords = keywords.strip()
+        
+        # Use first meaningful keyword as pattern
+        pattern = keywords.split()[0] if keywords else query
         
         options = SearchOptions(
             query=query,
@@ -228,11 +245,6 @@ class GrepAppMCP:
             extensions=extensions,
             use_regex=False,
         )
-        
-        # Convert natural language to grep pattern
-        # For simplicity, just search for keywords
-        keywords = query.replace("find", "").replace("all", "").strip()
-        pattern = keywords.split()[0] if keywords else query
         
         results = await self._run_grep(pattern, path, options)
         
@@ -270,7 +282,14 @@ class GrepAppMCP:
         pattern = arguments.get("pattern", "")
         path = arguments.get("path", ".")
         
-        cmd = ["grep", "-r", "-c", "--exclude-dir=node_modules,.git,__pycache__", pattern, path]
+        cmd = [
+            "grep",
+            "-r",
+            "-c",
+            "--exclude-dir=node_modules,.git,__pycache__,.venv,dist,build",
+            pattern,
+            path
+        ]
         
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -300,7 +319,14 @@ class GrepAppMCP:
         pattern = arguments.get("pattern", "")
         path = arguments.get("path", ".")
         
-        cmd = ["grep", "-r", "-l", "--exclude-dir=node_modules,.git,__pycache__", pattern, path]
+        cmd = [
+            "grep",
+            "-r",
+            "-l",
+            "--exclude-dir=node_modules,.git,__pycache__,.venv,dist,build",
+            pattern,
+            path
+        ]
         
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -316,7 +342,7 @@ class GrepAppMCP:
                     "isError": True,
                 }
             
-            files = stdout.decode().strip().split("\n")
+            files = [f for f in stdout.decode().strip().split("\n") if f]
             
             return {
                 "content": [{
@@ -333,40 +359,7 @@ class GrepAppMCP:
     async def run_stdio(self):
         """Run MCP server with stdio transport"""
         async with stdio_server() as (read_stream, write_stream):
-            await self.server.run(
-                read_stream,
-                write_stream,
-            )
-    
-    async def run_http(self, port: int = 8765):
-        """Run MCP server with HTTP transport (not implemented yet)"""
-        print(f"HTTP mode not implemented. Use stdio mode instead.")
-        await self.run_stdio()
-
-
-def main():
-    """CLI entry point"""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="Grep-App MCP Service")
-    parser.add_argument("--mode", choices=["stdio", "http", "enable", "disable", "status"], default="stdio")
-    parser.add_argument("--port", type=int, default=8765)
-    parser.add_argument("--settings", type=str, help="Path to settings.json")
-    
-    args = parser.parse_args()
-    
-    if args.mode == "enable":
-        enable_grep_app(args.settings)
-    elif args.mode == "disable":
-        disable_grep_app(args.settings)
-    elif args.mode == "status":
-        print_status(args.settings)
-    else:
-        mcp = GrepAppMCP()
-        if args.mode == "http":
-            asyncio.run(mcp.run_http(args.port))
-        else:
-            asyncio.run(mcp.run_stdio())
+            await self.server.run(read_stream, write_stream)
 
 
 def _get_settings_path(settings_path: Optional[str]) -> Path:
@@ -393,11 +386,12 @@ def enable_grep_app(settings_path: Optional[str] = None):
         "args": ["-m", "grep_app_mcp", "--mode", "stdio"],
         "protocol": "mcp",
         "enabled": True,
+        "description": "Local code search (inspired by grep.app)",
     }
     
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2))
-    print("Grep-App MCP enabled")
+    print("✓ Grep-App MCP enabled (local code search)")
 
 
 def disable_grep_app(settings_path: Optional[str] = None):
@@ -405,7 +399,7 @@ def disable_grep_app(settings_path: Optional[str] = None):
     path = _get_settings_path(settings_path)
     
     if not path.exists():
-        print("Settings file not found")
+        print("✗ Settings file not found")
         return
     
     settings = json.loads(path.read_text())
@@ -413,9 +407,9 @@ def disable_grep_app(settings_path: Optional[str] = None):
     if "mcpServers" in settings and "grep-app" in settings["mcpServers"]:
         del settings["mcpServers"]["grep-app"]
         path.write_text(json.dumps(settings, indent=2))
-        print("Grep-App MCP disabled")
+        print("✓ Grep-App MCP disabled")
     else:
-        print("Grep-App MCP not enabled")
+        print("✗ Grep-App MCP not enabled")
 
 
 def print_status(settings_path: Optional[str] = None):
@@ -423,7 +417,7 @@ def print_status(settings_path: Optional[str] = None):
     path = _get_settings_path(settings_path)
     
     if not path.exists():
-        print("Settings file not found")
+        print("✗ Settings file not found")
         return
     
     settings = json.loads(path.read_text())
@@ -432,10 +426,38 @@ def print_status(settings_path: Optional[str] = None):
     if "grep-app" in mcp_servers:
         config = mcp_servers["grep-app"]
         enabled = config.get("enabled", True)
-        print(f"Grep-App MCP: {'enabled' if enabled else 'disabled'}")
-        print(f"Command: {config.get('command')} {' '.join(config.get('args', []))}")
+        print(f"Grep-App MCP: {'✓ enabled' if enabled else '✗ disabled'}")
+        print(f"  Command: {config.get('command')} {' '.join(config.get('args', []))}")
+        print(f"  Description: {config.get('description', 'Local code search')}")
     else:
-        print("Grep-App MCP: not configured")
+        print("✗ Grep-App MCP: not configured")
+
+
+def main():
+    """CLI entry point"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(
+        description="Grep-App MCP - Local code search (inspired by grep.app)"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["stdio", "enable", "disable", "status"],
+        default="stdio"
+    )
+    parser.add_argument("--settings", type=str, help="Path to settings.json")
+    
+    args = parser.parse_args()
+    
+    if args.mode == "enable":
+        enable_grep_app(args.settings)
+    elif args.mode == "disable":
+        disable_grep_app(args.settings)
+    elif args.mode == "status":
+        print_status(args.settings)
+    else:
+        mcp = GrepAppMCP()
+        asyncio.run(mcp.run_stdio())
 
 
 if __name__ == "__main__":
