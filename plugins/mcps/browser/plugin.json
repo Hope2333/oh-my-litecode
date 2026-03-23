@@ -1,0 +1,46 @@
+{
+  "name": "browser",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Browser automation MCP service - Navigate, screenshot, interact with web pages",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3"],
+  "commands": [
+    {
+      "name": "navigate",
+      "description": "Navigate to URL",
+      "handler": "main.sh navigate"
+    },
+    {
+      "name": "screenshot",
+      "description": "Take screenshot",
+      "handler": "main.sh screenshot"
+    },
+    {
+      "name": "click",
+      "description": "Click element",
+      "handler": "main.sh click"
+    },
+    {
+      "name": "fill",
+      "description": "Fill form field",
+      "handler": "main.sh fill"
+    },
+    {
+      "name": "get_text",
+      "description": "Get text content",
+      "handler": "main.sh get_text"
+    },
+    {
+      "name": "scroll",
+      "description": "Scroll page",
+      "handler": "main.sh scroll"
+    }
+  ],
+  "security": {
+    "requireConfirm": ["navigate", "click", "fill"],
+    "blockedDomains": ["malware", "phishing"]
+  }
+}
