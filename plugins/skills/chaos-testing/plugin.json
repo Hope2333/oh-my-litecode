@@ -1,0 +1,1 @@
+{"name":"chaos-testing","version":"0.2.0","type":"skill","description":"Chaos testing skill","author":"OML Team","license":"MIT","platforms":["termux","gnu-linux"],"dependencies":["bash"],"commands":[{"name":"run_chaos","description":"Run chaos","handler":"main.sh run_chaos"},{"name":"analyze_resilience","description":"Analyze resilience","handler":"main.sh analyze_resilience"}]}

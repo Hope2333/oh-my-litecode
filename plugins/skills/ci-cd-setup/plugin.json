@@ -1,0 +1,1 @@
+{"name":"ci-cd-setup","version":"0.2.0","type":"skill","description":"CI/CD setup skill","author":"OML Team","license":"MIT","platforms":["termux","gnu-linux"],"dependencies":["bash"],"commands":[{"name":"setup_ci","description":"Setup CI","handler":"main.sh setup_ci"},{"name":"setup_cd","description":"Setup CD","handler":"main.sh setup_cd"}]}
