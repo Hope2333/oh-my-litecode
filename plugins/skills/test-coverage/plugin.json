@@ -1,0 +1,15 @@
+{
+  "name": "test-coverage",
+  "version": "0.2.0",
+  "type": "skill",
+  "description": "Test coverage skill - Analyze test coverage",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {"name": "analyze_coverage", "description": "Analyze coverage", "handler": "main.sh analyze_coverage"},
+    {"name": "generate_report", "description": "Generate report", "handler": "main.sh generate_report"},
+    {"name": "suggest_tests", "description": "Suggest tests", "handler": "main.sh suggest_tests"}
+  ]
+}

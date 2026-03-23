@@ -1,0 +1,16 @@
+{
+  "name": "calendar",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Calendar MCP service - Manage calendar events and reminders",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {"name": "list_events", "description": "List calendar events", "handler": "main.sh list_events"},
+    {"name": "add_event", "description": "Add calendar event", "handler": "main.sh add_event"},
+    {"name": "remove_event", "description": "Remove event", "handler": "main.sh remove_event"},
+    {"name": "get_reminders", "description": "Get reminders", "handler": "main.sh get_reminders"}
+  ]
+}

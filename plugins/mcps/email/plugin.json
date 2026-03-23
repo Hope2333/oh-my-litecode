@@ -1,0 +1,16 @@
+{
+  "name": "email",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Email MCP service - Send and manage emails",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {"name": "send_email", "description": "Send email", "handler": "main.sh send_email"},
+    {"name": "list_emails", "description": "List emails", "handler": "main.sh list_emails"},
+    {"name": "read_email", "description": "Read email", "handler": "main.sh read_email"},
+    {"name": "delete_email", "description": "Delete email", "handler": "main.sh delete_email"}
+  ]
+}

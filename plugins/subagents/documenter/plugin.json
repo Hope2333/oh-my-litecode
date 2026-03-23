@@ -1,0 +1,16 @@
+{
+  "name": "documenter",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Documenter subagent - Generate and maintain documentation",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {"name": "generate_docs", "description": "Generate documentation", "handler": "main.sh generate_docs"},
+    {"name": "update_readme", "description": "Update README", "handler": "main.sh update_readme"},
+    {"name": "add_comments", "description": "Add code comments", "handler": "main.sh add_comments"},
+    {"name": "check_docs", "description": "Check documentation", "handler": "main.sh check_docs"}
+  ]
+}

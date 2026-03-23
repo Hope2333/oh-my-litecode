@@ -1,0 +1,15 @@
+{
+  "name": "dependency-check",
+  "version": "0.2.0",
+  "type": "skill",
+  "description": "Dependency check skill - Check and audit dependencies",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {"name": "check_dependencies", "description": "Check dependencies", "handler": "main.sh check_dependencies"},
+    {"name": "find_updates", "description": "Find updates", "handler": "main.sh find_updates"},
+    {"name": "audit_licenses", "description": "Audit licenses", "handler": "main.sh audit_licenses"}
+  ]
+}

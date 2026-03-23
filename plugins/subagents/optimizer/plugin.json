@@ -1,0 +1,15 @@
+{
+  "name": "optimizer",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Optimizer subagent - Analyze and optimize code performance",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {"name": "analyze_performance", "description": "Analyze performance", "handler": "main.sh analyze_performance"},
+    {"name": "suggest_optimizations", "description": "Suggest optimizations", "handler": "main.sh suggest_optimizations"},
+    {"name": "apply_fixes", "description": "Apply optimizations", "handler": "main.sh apply_fixes"}
+  ]
+}

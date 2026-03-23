@@ -1,0 +1,14 @@
+{
+  "name": "performance-analysis",
+  "version": "0.2.0",
+  "type": "skill",
+  "description": "Performance analysis skill - Analyze code performance",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {"name": "analyze_performance", "description": "Analyze performance", "handler": "main.sh analyze_performance"},
+    {"name": "identify_bottlenecks", "description": "Identify bottlenecks", "handler": "main.sh identify_bottlenecks"}
+  ]
+}
