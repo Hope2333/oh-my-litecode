@@ -1,0 +1,51 @@
+{
+  "name": "database",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Database operations MCP service - Connect, query, and manage databases",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash", "python3"],
+  "commands": [
+    {
+      "name": "connect",
+      "description": "Connect to database",
+      "handler": "main.sh connect"
+    },
+    {
+      "name": "query",
+      "description": "Execute SQL query",
+      "handler": "main.sh query"
+    },
+    {
+      "name": "insert",
+      "description": "Insert data",
+      "handler": "main.sh insert"
+    },
+    {
+      "name": "update",
+      "description": "Update data",
+      "handler": "main.sh update"
+    },
+    {
+      "name": "delete",
+      "description": "Delete data",
+      "handler": "main.sh delete"
+    },
+    {
+      "name": "list_tables",
+      "description": "List tables",
+      "handler": "main.sh list_tables"
+    },
+    {
+      "name": "disconnect",
+      "description": "Disconnect from database",
+      "handler": "main.sh disconnect"
+    }
+  ],
+  "security": {
+    "requireConfirm": ["query", "insert", "update", "delete"],
+    "blockedOperations": ["DROP DATABASE", "TRUNCATE"]
+  }
+}

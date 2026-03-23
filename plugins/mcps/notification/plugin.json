@@ -1,0 +1,41 @@
+{
+  "name": "notification",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Notification MCP service - Send desktop, email, and webhook notifications",
+  "author": "OML Team",
+  "license": "MIT",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["bash"],
+  "commands": [
+    {
+      "name": "send_desktop",
+      "description": "Send desktop notification",
+      "handler": "main.sh send_desktop"
+    },
+    {
+      "name": "send_email",
+      "description": "Send email notification",
+      "handler": "main.sh send_email"
+    },
+    {
+      "name": "send_webhook",
+      "description": "Send webhook notification",
+      "handler": "main.sh send_webhook"
+    },
+    {
+      "name": "list_channels",
+      "description": "List notification channels",
+      "handler": "main.sh list_channels"
+    },
+    {
+      "name": "test",
+      "description": "Test notification",
+      "handler": "main.sh test"
+    }
+  ],
+  "security": {
+    "requireConfirm": ["send_email", "send_webhook"],
+    "rateLimit": "10/minute"
+  }
+}
