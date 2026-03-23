@@ -20,3 +20,10 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# OML Runtime
+.oml/sessions/
+.oml/pool/
+.oml/hooks/
+.oml/cache/
+.oml/tasks/
