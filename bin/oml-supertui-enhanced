@@ -1,0 +1,514 @@
+#!/usr/bin/env bash
+# OML SuperTUI - Enhanced Text User Interface using dialog/whiptail (ncurses)
+# Parameter-friendly TUI for OML management
+#
+# Usage: oml supertui [options]
+#   --menu          Show main menu
+#   --install       Run installation
+#   --update        Run update
+#   --plugins       Manage plugins
+#   --qwenx         Qwenx deployment
+#   --config        Edit configuration
+#   --system        Show system info
+#   --help          Show help
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# Configuration
+DIALOG_CMD=""
+OML_ROOT="${OML_ROOT:-${HOME}/develop/oh-my-litecode}"
+
+# Detect dialog command
+detect_dialog() {
+    if command -v dialog >/dev/null 2>&1; then
+        DIALOG_CMD="dialog"
+    elif command -v whiptail >/dev/null 2>&1; then
+        DIALOG_CMD="whiptail"
+    else
+        DIALOG_CMD=""
+    fi
+}
+
+# Source libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -f "${SCRIPT_DIR}/../lib/system-detect.sh" ]]; then
+    source "${SCRIPT_DIR}/../lib/system-detect.sh"
+    detect_all
+fi
+
+# Print error
+print_error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+}
+
+# Print success
+print_success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+# Check dialog availability
+check_dialog() {
+    detect_dialog
+    if [[ -z "$DIALOG_CMD" ]]; then
+        print_error "Neither dialog nor whiptail found"
+        echo "Please install: sudo pacman -S dialog  (Arch)"
+        echo "                sudo apt install dialog (Debian/Ubuntu)"
+        return 1
+    fi
+}
+
+# Show main menu
+show_main_menu() {
+    check_dialog || return 1
+    
+    local choice
+    choice=$($DIALOG_CMD --title "OML SuperTUI v0.2.0" \
+        --menu "Select an option:" 20 70 12 \
+        1 "Install OML" \
+        2 "Update OML" \
+        3 "Manage Plugins" \
+        4 "Qwenx Deployment" \
+        5 "Configuration" \
+        6 "System Info" \
+        7 "Plugins List" \
+        8 "Skills List" \
+        9 "Subagents List" \
+        10 "Performance" \
+        11 "Cloud Sync" \
+        12 "Exit" \
+        3>&1 1>&2 2>&3)
+    
+    local exit_code=$?
+    [[ $exit_code -ne 0 ]] && return 1
+    
+    case "$choice" in
+        1) run_install ;;
+        2) run_update ;;
+        3) manage_plugins ;;
+        4) deploy_qwenx ;;
+        5) edit_config ;;
+        6) show_system_info ;;
+        7) list_plugins ;;
+        8) list_skills ;;
+        9) list_subagents ;;
+        10) run_performance ;;
+        11) run_cloud_sync ;;
+        12) return 0 ;;
+    esac
+}
+
+# Run installation
+run_install() {
+    check_dialog || return 1
+    
+    local choice
+    choice=$($DIALOG_CMD --title "Installation" \
+        --menu "Select installation type:" 15 60 4 \
+        1 "Standard Installation" \
+        2 "Install with Qwenx" \
+        3 "Custom Installation" \
+        4 "Back" \
+        3>&1 1>&2 2>&3)
+    
+    [[ $? -ne 0 ]] && return 0
+    
+    case "$choice" in
+        1)
+            $DIALOG_CMD --infobox "Running standard installation..." 5 50
+            sleep 2
+            if [[ -f "${OML_ROOT}/bin/oml-install.sh" ]]; then
+                bash "${OML_ROOT}/bin/oml-install.sh"
+            fi
+            $DIALOG_CMD --msgbox "Installation complete!" 5 50
+            ;;
+        2)
+            $DIALOG_CMD --infobox "Running installation with Qwenx..." 5 60
+            sleep 2
+            if [[ -f "${OML_ROOT}/bin/oml-install.sh" ]]; then
+                bash "${OML_ROOT}/bin/oml-install.sh"
+            fi
+            if [[ -f "${OML_ROOT}/modules/qwen-deploy.sh" ]]; then
+                bash "${OML_ROOT}/modules/qwen-deploy.sh" deploy
+            fi
+            $DIALOG_CMD --msgbox "Installation with Qwenx complete!" 5 60
+            ;;
+        3)
+            $DIALOG_CMD --inputbox "Enter custom installation path:" 10 60 \
+                "${HOME}/develop/oh-my-litecode" \
+                3>&1 1>&2 2>&3
+            ;;
+    esac
+    
+    show_main_menu
+}
+
+# Run update
+run_update() {
+    check_dialog || return 1
+    
+    local choice
+    choice=$($DIALOG_CMD --title "Update OML" \
+        --menu "Select update option:" 15 60 4 \
+        1 "Update OML Core" \
+        2 "Update Plugins" \
+        3 "Update All" \
+        4 "Back" \
+        3>&1 1>&2 2>&3)
+    
+    [[ $? -ne 0 ]] && return 0
+    
+    case "$choice" in
+        1)
+            $DIALOG_CMD --infobox "Updating OML core..." 5 50
+            sleep 1
+            if [[ -f "${OML_ROOT}/bin/oml-update.sh" ]]; then
+                bash "${OML_ROOT}/bin/oml-update.sh" self
+            fi
+            $DIALOG_CMD --msgbox "Core update complete!" 5 50
+            ;;
+        2)
+            $DIALOG_CMD --infobox "Updating plugins..." 5 50
+            sleep 1
+            if [[ -f "${OML_ROOT}/bin/oml-update.sh" ]]; then
+                bash "${OML_ROOT}/bin/oml-update.sh" plugins
+            fi
+            $DIALOG_CMD --msgbox "Plugins update complete!" 5 50
+            ;;
+        3)
+            $DIALOG_CMD --infobox "Updating all components..." 5 50
+            sleep 1
+            if [[ -f "${OML_ROOT}/bin/oml-update.sh" ]]; then
+                bash "${OML_ROOT}/bin/oml-update.sh" all
+            fi
+            $DIALOG_CMD --msgbox "All updates complete!" 5 50
+            ;;
+    esac
+    
+    show_main_menu
+}
+
+# Manage plugins
+manage_plugins() {
+    check_dialog || return 1
+    
+    local choice
+    choice=$($DIALOG_CMD --title "Manage Plugins" \
+        --menu "Select plugin action:" 15 60 5 \
+        1 "List All Plugins" \
+        2 "List MCP Services" \
+        3 "List Subagents" \
+        4 "List Skills" \
+        5 "Back" \
+        3>&1 1>&2 2>&3)
+    
+    [[ $? -ne 0 ]] && return 0
+    
+    case "$choice" in
+        1) list_plugins ;;
+        2) list_mcps ;;
+        3) list_subagents ;;
+        4) list_skills ;;
+    esac
+    
+    show_main_menu
+}
+
+# List plugins
+list_plugins() {
+    check_dialog || return 1
+    
+    local output=""
+    if [[ -d "${OML_ROOT}/plugins" ]]; then
+        output=$(find "${OML_ROOT}/plugins" -name "plugin.json" -exec jq -r '.name + " - " + .description' {} \; 2>/dev/null | head -20)
+    fi
+    
+    $DIALOG_CMD --textbox /dev/stdin 30 80 <<< "$output"
+}
+
+# List MCPs
+list_mcps() {
+    check_dialog || return 1
+    
+    local output=""
+    if [[ -d "${OML_ROOT}/plugins/mcps" ]]; then
+        output=$(find "${OML_ROOT}/plugins/mcps" -name "plugin.json" -exec jq -r '.name + " - " + .description' {} \; 2>/dev/null)
+    fi
+    
+    $DIALOG_CMD --textbox /dev/stdin 20 70 <<< "$output"
+}
+
+# List subagents
+list_subagents() {
+    check_dialog || return 1
+    
+    local output=""
+    if [[ -d "${OML_ROOT}/plugins/subagents" ]]; then
+        output=$(find "${OML_ROOT}/plugins/subagents" -name "plugin.json" -exec jq -r '.name + " - " + .description' {} \; 2>/dev/null)
+    fi
+    
+    $DIALOG_CMD --textbox /dev/stdin 20 70 <<< "$output"
+}
+
+# List skills
+list_skills() {
+    check_dialog || return 1
+    
+    local output=""
+    if [[ -d "${OML_ROOT}/plugins/skills" ]]; then
+        output=$(find "${OML_ROOT}/plugins/skills" -name "plugin.json" -exec jq -r '.name + " - " + .description' {} \; 2>/dev/null)
+    fi
+    
+    $DIALOG_CMD --textbox /dev/stdin 25 70 <<< "$output"
+}
+
+# Deploy Qwenx
+deploy_qwenx() {
+    check_dialog || return 1
+    
+    local choice
+    choice=$($DIALOG_CMD --title "Qwenx Deployment" \
+        --menu "Select Qwenx action:" 15 60 4 \
+        1 "Deploy Qwenx" \
+        2 "Update Qwenx" \
+        3 "Qwenx Status" \
+        4 "Back" \
+        3>&1 1>&2 2>&3)
+    
+    [[ $? -ne 0 ]] && return 0
+    
+    case "$choice" in
+        1)
+            $DIALOG_CMD --infobox "Deploying Qwenx..." 5 50
+            if [[ -f "${OML_ROOT}/modules/qwen-deploy.sh" ]]; then
+                bash "${OML_ROOT}/modules/qwen-deploy.sh" deploy
+            fi
+            $DIALOG_CMD --msgbox "Qwenx deployment complete!" 5 50
+            ;;
+        2)
+            $DIALOG_CMD --infobox "Updating Qwenx..." 5 50
+            if [[ -f "${OML_ROOT}/modules/qwen-deploy.sh" ]]; then
+                bash "${OML_ROOT}/modules/qwen-deploy.sh" update
+            fi
+            $DIALOG_CMD --msgbox "Qwenx update complete!" 5 50
+            ;;
+        3)
+            if [[ -f "${OML_ROOT}/modules/qwen-deploy.sh" ]]; then
+                bash "${OML_ROOT}/modules/qwen-deploy.sh" status 2>&1 | $DIALOG_CMD --textbox /dev/stdin 20 70
+            fi
+            ;;
+    esac
+    
+    show_main_menu
+}
+
+# Edit configuration
+edit_config() {
+    local config_file="${HOME}/.oml/config.json"
+    
+    if [[ ! -f "$config_file" ]]; then
+        mkdir -p "$(dirname "$config_file")"
+        cat > "$config_file" <<EOF
+{
+  "version": "0.2.0",
+  "installed_at": "$(date -Iseconds)",
+  "branch": "main",
+  "system": "arch"
+}
+EOF
+    fi
+    
+    if command -v nano >/dev/null 2>&1; then
+        nano "$config_file"
+    elif command -v vi >/dev/null 2>&1; then
+        vi "$config_file"
+    else
+        cat "$config_file"
+    fi
+    
+    show_main_menu
+}
+
+# Show system info
+show_system_info() {
+    check_dialog || return 1
+    
+    local sys_info=""
+    if type detect_all >/dev/null 2>&1; then
+        detect_all
+        sys_info="System: ${SYSTEM:-unknown}
+Architecture: ${ARCH:-unknown}
+Package Manager: ${PKG_MANAGER:-unknown}
+Shell: ${SHELL_TYPE:-unknown}
+OS: ${OS_VERSION:-unknown}
+Git: $(git --version 2>&1 | head -1)
+Python: $(python3 --version 2>&1)
+Node.js: $(node --version 2>&1)"
+    else
+        sys_info=$(uname -a)
+    fi
+    
+    $DIALOG_CMD --textbox /dev/stdin 20 70 <<< "$sys_info"
+    show_main_menu
+}
+
+# Run performance tools
+run_performance() {
+    check_dialog || return 1
+    
+    local choice
+    choice=$($DIALOG_CMD --title "Performance Tools" \
+        --menu "Select performance tool:" 15 60 4 \
+        1 "Run Benchmark" \
+        2 "View Monitor Status" \
+        3 "Optimize Startup" \
+        4 "Back" \
+        3>&1 1>&2 2>&3)
+    
+    [[ $? -ne 0 ]] && return 0
+    
+    case "$choice" in
+        1)
+            if [[ -f "${OML_ROOT}/modules/perf-tools.sh" ]]; then
+                bash "${OML_ROOT}/modules/perf-tools.sh" benchmark 2>&1 | $DIALOG_CMD --textbox /dev/stdin 25 70
+            fi
+            ;;
+        2)
+            if [[ -f "${OML_ROOT}/modules/perf-monitor.sh" ]]; then
+                bash "${OML_ROOT}/modules/perf-monitor.sh" status 2>&1 | $DIALOG_CMD --textbox /dev/stdin 20 70
+            fi
+            ;;
+        3)
+            if [[ -f "${OML_ROOT}/modules/startup-optimizer.sh" ]]; then
+                bash "${OML_ROOT}/modules/startup-optimizer.sh" apply
+            fi
+            $DIALOG_CMD --msgbox "Startup optimization applied!" 5 50
+            ;;
+    esac
+    
+    show_main_menu
+}
+
+# Run cloud sync
+run_cloud_sync() {
+    check_dialog || return 1
+    
+    local choice
+    choice=$($DIALOG_CMD --title "Cloud Sync" \
+        --menu "Select cloud sync action:" 15 60 5 \
+        1 "Initialize Cloud Sync" \
+        2 "Authenticate" \
+        3 "Pull from Cloud" \
+        4 "Push to Cloud" \
+        5 "Back" \
+        3>&1 1>&2 2>&3)
+    
+    [[ $? -ne 0 ]] && return 0
+    
+    case "$choice" in
+        1)
+            if [[ -f "${OML_ROOT}/modules/cloud-sync-full.sh" ]]; then
+                bash "${OML_ROOT}/modules/cloud-sync-full.sh" init
+            fi
+            $DIALOG_CMD --msgbox "Cloud sync initialized!" 5 50
+            ;;
+        2)
+            if [[ -f "${OML_ROOT}/modules/cloud-sync-full.sh" ]]; then
+                bash "${OML_ROOT}/modules/cloud-sync-full.sh" auth
+            fi
+            ;;
+        3)
+            if [[ -f "${OML_ROOT}/modules/cloud-sync-full.sh" ]]; then
+                bash "${OML_ROOT}/modules/cloud-sync-full.sh" sync pull
+            fi
+            $DIALOG_CMD --msgbox "Pull complete!" 5 50
+            ;;
+        4)
+            if [[ -f "${OML_ROOT}/modules/cloud-sync-full.sh" ]]; then
+                bash "${OML_ROOT}/modules/cloud-sync-full.sh" sync push
+            fi
+            $DIALOG_CMD --msgbox "Push complete!" 5 50
+            ;;
+    esac
+    
+    show_main_menu
+}
+
+# Show help
+show_help() {
+    cat <<EOF
+OML SuperTUI - Enhanced with ncurses (dialog/whiptail)
+
+Usage: oml supertui [options]
+
+Options:
+  --menu          Show main menu (default)
+  --install       Run installation
+  --update        Run update
+  --plugins       Manage plugins
+  --qwenx         Qwenx deployment
+  --config        Edit configuration
+  --system        Show system info
+  --help          Show this help
+
+Dependencies:
+  - dialog or whiptail (ncurses)
+  
+Install dependencies:
+  Arch:    sudo pacman -S dialog
+  Debian:  sudo apt install dialog
+  Termux:  pkg install dialog
+
+Features:
+  - Menu-driven interface
+  - Parameter-friendly
+  - Full ncurses support
+  - Easy navigation
+
+EOF
+}
+
+# Main function
+main() {
+    local command="${1:-menu}"
+    
+    case "$command" in
+        --menu|menu)
+            show_main_menu
+            ;;
+        --install|install)
+            run_install
+            ;;
+        --update|update)
+            run_update
+            ;;
+        --plugins|plugins)
+            manage_plugins
+            ;;
+        --qwenx|qwenx)
+            deploy_qwenx
+            ;;
+        --config|config)
+            edit_config
+            ;;
+        --system|system)
+            show_system_info
+            ;;
+        --help|help|-h)
+            show_help
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
