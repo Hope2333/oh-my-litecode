@@ -120,16 +120,35 @@ PY
 
 # Initialize qwen environment
 qwen_init() {
-    # Setup fake home
+    # Setup fake home with nesting prevention
     local fake_home
+    
     if [[ -n "${_FAKEHOME:-}" ]]; then
+        # Already in fake home environment
         fake_home="${_FAKEHOME}"
+    elif [[ "${HOME}" == *"/.local/home/qwenx" ]]; then
+        # Already in qwenx fake home, use it directly
+        fake_home="${HOME}"
+    elif [[ "${HOME}" == *"/.local/home/qwen" ]]; then
+        # Already in qwen fake home, use it directly
+        fake_home="${HOME}"
     else
-        fake_home="$(oml_get_fake_home "$PLUGIN_NAME" 2>/dev/null || echo "${HOME}/.local/home/qwen")"
+        # Get fake home path, but prevent nesting
+        local candidate_home
+        candidate_home="$(oml_get_fake_home "$PLUGIN_NAME" 2>/dev/null || echo "${HOME}/.local/home/qwen")"
+        
+        # Check if this would create nesting (inside another fake home)
+        if [[ "$candidate_home" == "${HOME}/.local/home/"* ]]; then
+            # Would create nesting, use current HOME instead
+            fake_home="${HOME}"
+        else
+            fake_home="$candidate_home"
+        fi
     fi
 
     export _REALHOME="${HOME}"
     export HOME="${fake_home}"
+
 
     SETTINGS_FILE="${fake_home}/.qwen/settings.json"
     CTX7_DIR="${fake_home}/.qwenx/secrets"

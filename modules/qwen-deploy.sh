@@ -83,6 +83,11 @@ check_prerequisites() {
 
 # Detect Android permissions
 detect_android_perms_wrapper() {
+    
+    # Detect and clean fakehome nesting
+    if detect_fakehome_nesting; then
+        clean_fakehome_nesting
+    fi
     if [[ "$SYSTEM" == "termux" ]]; then
         print_step "Detecting Android permissions..."
         
@@ -103,6 +108,80 @@ detect_android_perms_wrapper() {
 }
 
 # Create Qwenx directories
+# Detect fakehome nesting
+detect_fakehome_nesting() {
+    print_step "Checking for fakehome nesting..."
+    
+    local nesting_found=false
+    local nested_dirs=()
+    
+    # Check for nested .local/home directories
+    if [[ -d "${QWENX_HOME}/.local/home" ]]; then
+        nesting_found=true
+        nested_dirs+=("${QWENX_HOME}/.local/home")
+    fi
+    
+    # Check for nested fake home paths
+    if [[ -d "${QWENX_HOME}/.local/home/qwen" ]]; then
+        nesting_found=true
+        nested_dirs+=("${QWENX_HOME}/.local/home/qwen")
+    fi
+    
+    if [[ "$nesting_found" == "true" ]]; then
+        print_warning "Fakehome nesting detected!"
+        for dir in "${nested_dirs[@]}"; do
+            echo "  - $dir"
+        done
+        return 0
+    fi
+    
+    print_success "No fakehome nesting detected"
+    return 1
+}
+
+# Clean nested fakehome directories
+clean_fakehome_nesting() {
+    print_step "Cleaning nested fakehome directories..."
+    
+    local cleaned=0
+    
+    # Remove nested .local/home structure
+    if [[ -d "${QWENX_HOME}/.local/home/qwen" ]]; then
+        # Backup oauth credentials before cleaning
+        local oauth_src="${QWENX_HOME}/.local/home/qwen/.qwen/oauth_creds.json"
+        local oauth_dst="${QWENX_CONFIG}/oauth_creds.json"
+        
+        if [[ -f "$oauth_src" && ! -f "$oauth_dst" ]]; then
+            cp "$oauth_src" "$oauth_dst"
+            print_step "Backed up OAuth credentials"
+        fi
+        
+        rm -rf "${QWENX_HOME}/.local/home/qwen"
+        ((cleaned++)) || true
+    fi
+    
+    if [[ -d "${QWENX_HOME}/.local/home/qwenx" ]]; then
+        rm -rf "${QWENX_HOME}/.local/home/qwenx"
+        ((cleaned++)) || true
+    fi
+    
+    # Remove empty parent directories
+    if [[ -d "${QWENX_HOME}/.local/home" ]]; then
+        rmdir "${QWENX_HOME}/.local/home" 2>/dev/null || true
+    fi
+    
+    if [[ -d "${QWENX_HOME}/.local" ]]; then
+        # Only remove if empty
+        rmdir "${QWENX_HOME}/.local" 2>/dev/null || true
+    fi
+    
+    if [[ $cleaned -gt 0 ]]; then
+        print_success "Cleaned $cleaned nested directory(ies)"
+    else
+        print_success "No nested directories to clean"
+    fi
+}
+
 create_directories() {
     print_step "Creating Qwenx directories..."
     
@@ -255,6 +334,11 @@ cmd_deploy() {
     print_step "Deploying Qwenx..."
     
     detect_android_perms_wrapper
+    
+    # Detect and clean fakehome nesting
+    if detect_fakehome_nesting; then
+        clean_fakehome_nesting
+    fi
     check_prerequisites
     create_directories
     create_config
