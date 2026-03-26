@@ -1303,6 +1303,8 @@ main() {
                     qwen_session_add_message "$role" "$content" "$metadata"
                     ;;
                 clear) qwen_session_clear_messages ;;
+                tui|T) bash "${PLUGIN_DIR}/scripts/session.sh" tui ;;
+                manager|M) bash "${PLUGIN_DIR}/scripts/session.sh" "$@" ;;
                 delete) qwen_session_delete "$@" ;;
                 help|--help|-h|"")
                     cat <<EOF
@@ -1319,6 +1321,8 @@ Actions:
   add-message <role> <content> [metadata]  Add message to session
   clear                       Clear session messages
   delete [session_id]         Delete session
+  tui                         Launch TUI interface
+  manager [cmd]               Session manager CLI
 
 Roles: user, assistant, system
 EOF
