@@ -1,0 +1,96 @@
+# Qwen Session Manager Command
+# Usage: /session <command> [args]
+# Commands: tui, list, delete, clear, info, help
+
+[command]
+name = "session"
+description = "Manage Qwen Code sessions with TUI interface"
+usage = "/session <command> [args]"
+
+[command.arguments]
+command = { type = "string", required = false, description = "Command: tui, list, delete, clear, info, help" }
+args = { type = "string", required = false, description = "Additional arguments" }
+
+[command.script]
+language = "bash"
+content = """
+#!/usr/bin/env bash
+# Qwen Session Manager - Extension Command
+
+SESSIONS_DIR="${HOME}/.qwen/sessions"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SESSION_MANAGER="${SCRIPT_DIR}/../scripts/session_manager.py"
+
+# Ensure sessions directory exists
+mkdir -p "$SESSIONS_DIR"
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+    tui|T)
+        python3 "$SESSION_MANAGER" -d "$SESSIONS_DIR"
+        ;;
+    list|ls|l)
+        python3 "$SESSION_MANAGER" -d "$SESSIONS_DIR" --list
+        ;;
+    json|j)
+        python3 "$SESSION_MANAGER" -d "$SESSIONS_DIR" --list --json
+        ;;
+    delete|del|rm|d)
+        python3 "$SESSION_MANAGER" -d "$SESSIONS_DIR" --delete "$1"
+        ;;
+    clear|clean|c)
+        echo -n "Delete ALL sessions? [y/N] "
+        read -r confirm
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+            python3 "$SESSION_MANAGER" -d "$SESSIONS_DIR" --clear-all
+        else
+            echo "Cancelled"
+        fi
+        ;;
+    info|i)
+        python3 "$SESSION_MANAGER" -d "$SESSIONS_DIR" --list --json | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for s in data['sessions']:
+    if s['session_id'] == '$1' or s['session_id'].startswith('$1'):
+        print(json.dumps(s, indent=2))
+        sys.exit(0)
+print('Session not found: $1', file=sys.stderr)
+sys.exit(1)
+"
+        ;;
+    help|--help|-h|"")
+        cat <<HELP
+Session Manager - Manage Qwen Code sessions
+
+Usage: /session <command> [args]
+
+Commands:
+  tui             Launch interactive TUI interface
+  list            List all sessions
+  json            List sessions in JSON format
+  delete <id>     Delete a session by ID
+  clear           Clear all sessions (with confirmation)
+  info <id>       Show session details
+
+TUI Controls (when using /session tui):
+  ↑/k, ↓/j        Navigate sessions
+  Enter           View session details
+  d               Delete selected session
+  m               Toggle multi-select mode
+  x               Mark/unmark session
+  D               Delete marked sessions
+  r               Refresh list
+  C               Clear all sessions
+  ?               Toggle help
+  q               Quit
+HELP
+        ;;
+    *)
+        echo "Unknown command: $cmd"
+        echo "Use /session help for usage"
+        ;;
+esac
+"""

@@ -1,0 +1,9 @@
+{
+  "name": "qwen-session-manager",
+  "version": "1.0.0",
+  "description": "Session management TUI and CLI tools for Qwen Code",
+  "author": "OML Team",
+  "repository": "https://github.com/Hope2333/oh-my-litecode",
+  "commands": "commands",
+  "contextFileName": "QWEN.md"
+}
