@@ -31,6 +31,7 @@ SETTINGS_FILE=""
 CTX7_DIR=""
 CTX7_KEYS_FILE=""
 CTX7_INDEX_FILE=""
+OAUTH_CREDS_FILE=""
 
 # ============================================================================
 # Session Configuration
@@ -52,7 +53,68 @@ readonly HOOK_PRE_TOOL_USE="qwen:pre_tool_use"
 readonly HOOK_POST_TOOL_USE="qwen:post_tool_use"
 readonly HOOK_STOP="qwen:stop"
 
+
 # ============================================================================
+# ============================================================================
+# Check and load OAuth credentials if available
+qwen_check_oauth() {
+    # Skip if QWEN_API_KEY is already set
+    if [[ -n "${QWEN_API_KEY:-}" ]]; then
+        return 0
+    fi
+    
+    local oauth_creds_file="${OAUTH_CREDS_FILE:-}"
+    
+    # Also check base qwenx config directory for oauth credentials
+    if [[ -z "$oauth_creds_file" || ! -f "$oauth_creds_file" ]]; then
+        local base_qwenx_config="${HOME}/.local/home/qwenx/.qwen/oauth_creds.json"
+        if [[ -f "$base_qwenx_config" ]]; then
+            oauth_creds_file="$base_qwenx_config"
+        fi
+    fi
+    
+    if [[ -f "$oauth_creds_file" ]]; then
+        # Parse OAuth credentials using Python
+        local token_info
+        token_info=$(python3 - "$oauth_creds_file" << 'PY'
+import json
+import sys
+from pathlib import Path
+from datetime import datetime
+
+creds_file = Path(sys.argv[1])
+if not creds_file.exists():
+    sys.exit(1)
+
+try:
+    data = json.loads(creds_file.read_text(encoding='utf-8'))
+    access_token = data.get('access_token', '')
+    expiry_date = data.get('expiry_date', 0)
+    
+    # Check if token is expired (expiry_date is in milliseconds)
+    if expiry_date:
+        expiry_ms = int(expiry_date)
+        expiry_sec = expiry_ms // 1000
+        now_sec = int(datetime.now().timestamp())
+        # Add 5 minute buffer
+        if expiry_sec < now_sec + 300:
+            print("EXPIRED")
+            sys.exit(0)
+    
+    if access_token:
+        print(access_token)
+except Exception:
+    sys.exit(1)
+PY
+)
+        
+        if [[ -n "$token_info" && "$token_info" != "EXPIRED" ]]; then
+            export QWEN_API_KEY="$token_info"
+            export QWEN_BASE_URL="https://chat.qwen.ai/api"
+        fi
+    fi
+}
+
 # Initialization
 # ============================================================================
 
@@ -73,6 +135,7 @@ qwen_init() {
     CTX7_DIR="${fake_home}/.qwenx/secrets"
     CTX7_KEYS_FILE="${CTX7_DIR}/context7.keys"
     CTX7_INDEX_FILE="${CTX7_DIR}/context7.index"
+    OAUTH_CREDS_FILE="${fake_home}/.qwen/oauth_creds.json"
 
     # Ensure directories exist
     mkdir -p "${fake_home}/.qwen"
@@ -88,6 +151,9 @@ qwen_init() {
     if [[ "${QWEN_HOOKS_ENABLED}" == "true" ]]; then
         qwen_hooks_init
     fi
+
+    # Check and load OAuth credentials if available
+    qwen_check_oauth
 }
 
 # ============================================================================
