@@ -6,6 +6,11 @@ set -euo pipefail
 
 OML_CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Auto-fix fakehome nesting
+if [[ -f "${OML_CORE_DIR}/fakehome-fix.sh" ]]; then
+    source "${OML_CORE_DIR}/fakehome-fix.sh"
+fi
+
 # Platform detection - Enhanced for multi-distro support
 oml_platform_detect() {
     # Termux (Android) - highest priority
