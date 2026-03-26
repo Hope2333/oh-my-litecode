@@ -26,26 +26,25 @@ if [[ -f "${OML_CORE_DIR}/hooks-engine.sh" ]]; then
     source "${OML_CORE_DIR}/hooks-engine.sh" 2>/dev/null || true
 # ============================================================================
 # Fakehome Nesting Detection and Fix
-# If HOME is inside a fakehome, restore to real HOME
+# Only fixes NESTED fakehomes (e.g., /.local/home/qwenx/.local/home/qwen)
+# Does NOT fix single-level fakehomes (e.g., /.local/home/qwenx)
 # ============================================================================
-_fix_fakehome_home() {
-    # Check if current HOME is inside a fakehome structure
-    if [[ "${HOME}" == *"/.local/home/"* ]]; then
-        # Extract the real home (parent of .local/home)
+_fix_fakehome_nesting() {
+    if [[ "${HOME}" == *"/.local/home/"*"/.local/home/"* ]]; then
         local real_home
         real_home=$(echo "$HOME" | sed 's|/\.local/home/[^/]*$||')
         
-        # Verify it's a valid home directory
         if [[ -d "$real_home" && "$real_home" != "$HOME" ]]; then
             export _FAKEHOME_ORIGINAL="${HOME}"
             export HOME="${real_home}"
             export _FAKEHOME_FIXED="true"
+            export _FAKEHOME_NESTING_DETECTED="true"
         fi
     fi
 }
 
-# Apply fakehome fix before anything else
-_fix_fakehome_home
+# Apply fix before anything else
+_fix_fakehome_nesting
 fi
 
 # Configuration

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cleanup nested fakehome directories
-# Merges data from nested fakehomes to the correct location
+# ONLY cleans nested fakehomes, preserves single-level fakehomes
 
 set -euo pipefail
 
@@ -15,27 +15,31 @@ print_success() { echo -e "${GREEN}✓${NC} $1"; }
 print_warning() { echo -e "${YELLOW}!${NC} $1"; }
 print_error() { echo -e "${RED}✗${NC} $1" >&2; }
 
-# Base directories
-QWENX_BASE="${HOME}/.local/home/qwenx"
-QWEN_BASE="${HOME}/.local/home/qwen"
-
 # Find and cleanup nested fakehomes
+# Pattern: /.local/home/XXX/.local/home/
 cleanup_nested() {
     local base_dir="$1"
-    local nested_count=0
+    local cleaned=0
     
-    print_step "Checking for nested fakehomes in $base_dir..."
+    print_step "Checking for nested fakehomes under $base_dir..."
     
     # Find nested .local/home directories
     while IFS= read -r nested_local; do
         if [[ -d "$nested_local" ]]; then
-            nested_count=$((nested_count + 1))
-            print_warning "Found nested: $nested_local"
+            local parent_dir=$(dirname "$nested_local")
+            print_warning "Found nested structure: $nested_local"
             
             # Check for nested home directories
             for nested_home in "$nested_local"/home/*; do
                 if [[ -d "$nested_home" ]]; then
                     local name=$(basename "$nested_home")
+                    
+                    # Skip if this is the current running environment
+                    if [[ "$nested_home" == "$HOME" ]]; then
+                        print_warning "Skipping current running environment: $nested_home"
+                        continue
+                    fi
+                    
                     print_step "Processing nested home: $name"
                     
                     # Merge data if exists
@@ -54,29 +58,43 @@ cleanup_nested() {
                     
                     # Remove nested after merge
                     rm -rf "$nested_home"
+                    cleaned=$((cleaned + 1))
                     print_success "Removed nested: $name"
                 fi
             done
             
             # Remove empty nested .local
             rmdir "$nested_local" 2>/dev/null || true
-            rmdir "$(dirname "$nested_local")" 2>/dev/null || true
+            rmdir "$parent_dir" 2>/dev/null || true
         fi
-    done < <(find "$base_dir" -type d -name ".local" 2>/dev/null || true)
+    done < <(find "$base_dir" -type d -path "*/.local/home/*/.local" 2>/dev/null || true)
     
-    if [[ $nested_count -eq 0 ]]; then
+    if [[ $cleaned -eq 0 ]]; then
         print_success "No nested fakehomes found"
     else
-        print_success "Cleaned $nested_count nested fakehome(s)"
+        print_success "Cleaned $cleaned nested fakehome(s)"
     fi
 }
 
 # Main
 main() {
     print_step "Starting fakehome cleanup..."
+    print_warning "Note: Only nested fakehomes will be cleaned"
+    print_warning "Single-level fakehomes (like ~/.local/home/qwenx) are preserved"
+    echo ""
     
-    cleanup_nested "$QWENX_BASE"
-    cleanup_nested "$QWEN_BASE"
+    # Get real home
+    local real_home="${HOME}"
+    if [[ -n "${_FAKEHOME_ORIGINAL:-}" ]]; then
+        real_home="${_FAKEHOME_ORIGINAL}"
+    fi
+    
+    # Find base fakehome directories
+    local fakehome_base=$(dirname "$real_home")
+    
+    if [[ -d "$fakehome_base" ]]; then
+        cleanup_nested "$fakehome_base"
+    fi
     
     print_success "Cleanup complete!"
 }
