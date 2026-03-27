@@ -45,7 +45,7 @@ legacy-qwenx/
 1. **安全问题**: API 密钥硬编码
    ```bash
    # ❌ 错误做法（实验室版）
-   export QWEN_API_KEY="sk-mf0RD9eiVXaLiECaCZDcwl8c9qGWx135JzJwFnDJlfyYSZF7"
+   export QWEN_API_KEY="sk-..ZF7"
    
    # ✅ 正确做法（OML 版）
    export QWEN_API_KEY="${QWEN_API_KEY:-}"
