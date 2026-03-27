@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/pool/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core PoolManager instead
+
 # OML Worker Pool Manager
 # Worker 池管理核心 - 提供 Worker 生命周期管理和动态扩缩容
 

@@ -257,12 +257,29 @@ async function checkLaneConsistency(errors) {
   }
 }
 
+async function checkComplianceGate(errors) {
+  // GPT-5.4 compliance audit 2026-03-27
+  // Check Qwen plugin for compliance warning
+  const qwenPluginPath = 'plugins/agents/qwen/main.sh';
+  try {
+    const qwenPlugin = await readFile(qwenPluginPath);
+    const hasWarning = qwenPlugin.includes('WARNING: HIGH RISK') &&
+                       qwenPlugin.includes('OAuth fallback to consumer web endpoint');
+    if (!hasWarning) {
+      errors.push(`${qwenPluginPath}: Missing compliance warning for OAuth fallback (GPT-5.4 HIGH finding)`);
+    }
+  } catch {
+    // File may not exist in all deployments
+  }
+}
+
 async function main() {
   const errors = [];
 
   await checkInterPackageContracts(errors);
   await checkEvidenceBasedStatus(errors);
   await checkLaneConsistency(errors);
+  await checkComplianceGate(errors);
 
   if (errors.length > 0) {
     console.error('Architecture contract check failed:');

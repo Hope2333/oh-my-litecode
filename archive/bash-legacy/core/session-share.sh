@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/session/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core SessionManager instead
+
 # OML Session Share
 # Share/Unshare 功能实现 - 支持会话共享、导出和导入
 

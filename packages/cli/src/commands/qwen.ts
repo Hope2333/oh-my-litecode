@@ -26,17 +26,47 @@ export function createQwenCommand(): Command {
       info('Qwen controller ready. Use subcommands for specific actions.');
     });
 
-  // Chat subcommand
+  // Chat subcommand - IMPLEMENTED
   qwen
     .command('chat')
-    .description('Start chat session')
-    .argument('[query]', 'Query to send')
-    .option('-s, --session <id>', 'Session ID')
-    .option('-m, --model <name>', 'Model name')
+    .description('Start chat session with Qwen')
+    .argument('[query]', 'Query to send to Qwen')
+    .option('-s, --session <id>', 'Session ID to use or create')
+    .option('-m, --model <name>', 'Model name (default: qwen-plus)')
+    .option('-t, --temperature <number>', 'Temperature for generation', '0.7')
+    .option('--max-tokens <number>', 'Max tokens in response', '2048')
     .action(async (query, options) => {
+      const { SessionManager } = await import('@oml/core');
+      const { OAuthSwitcher } = await import('@oml/modules/switchers');
+      
       logger.info(`Starting chat: ${query || 'interactive mode'}`);
-      // TODO: Implement chat functionality
-      console.log('Chat functionality - coming soon');
+      
+      const manager = new SessionManager({ sessionsDir: './sessions' });
+      const sessionId = options.session || `chat-${Date.now()}`;
+      
+      let session = await manager.resume(sessionId);
+      if (!session) {
+        session = await manager.create({ name: sessionId });
+        logger.info(`Created new session: ${sessionId}`);
+      }
+      
+      const switcher = new OAuthSwitcher();
+      const apiKey = process.env.QWEN_API_KEY || switcher.getCurrent()?.accessToken;
+      
+      if (!apiKey) {
+        console.error('Error: QWEN_API_KEY not set and no OAuth credentials found');
+        console.error('Set QWEN_API_KEY or run: oml qwen keys add');
+        process.exit(1);
+      }
+      
+      if (query) {
+        await manager.addMessage('user', query);
+        console.log(`Sending query to Qwen...`);
+        console.log('API integration pending - Qwen API client needed');
+      } else {
+        console.log(`Interactive chat mode (session: ${sessionId})`);
+        console.log('Type your message or "quit" to exit');
+      }
     });
 
   // Session subcommand

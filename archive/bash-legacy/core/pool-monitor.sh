@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/pool/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core PoolManager instead
+
 # OML Pool Resource Monitor
 # 资源监控模块 - 实时监控系统资源与 Worker 健康状态
 

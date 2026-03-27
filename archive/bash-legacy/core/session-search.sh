@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/session/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core SessionManager instead
+
 # OML Session Search
 # 搜索功能实现 - 支持会话内容搜索、过滤和索引
 

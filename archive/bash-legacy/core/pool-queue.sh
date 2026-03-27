@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/pool/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core PoolManager instead
+
 # OML Pool Queue Manager
 # 优先级队列管理 - 实现 MLFQ (多级反馈队列) 调度算法
 

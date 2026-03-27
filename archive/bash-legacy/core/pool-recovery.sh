@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/pool/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core PoolManager instead
+
 # OML Pool Recovery Manager
 # 故障恢复模块 - 提供 Worker 故障检测、自动恢复与容错机制
 

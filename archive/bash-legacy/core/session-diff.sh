@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/session/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core SessionManager instead
+
 # OML Session Diff
 # Diff 功能实现 - 支持会话比较、差异分析和变更追踪
 

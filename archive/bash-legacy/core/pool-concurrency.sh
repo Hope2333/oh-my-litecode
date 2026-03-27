@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# DEPRECATED: Migrated to TypeScript (packages/core/src/pool/manager.ts)
+# Archive Date: 2026-03-26
+# Use: @oml/core PoolManager instead
+
 # OML Pool Concurrency Control
 # 并发控制模块 - 实现令牌桶算法进行流量控制
 

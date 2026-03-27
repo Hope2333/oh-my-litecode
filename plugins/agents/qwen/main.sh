@@ -78,6 +78,11 @@ readonly HOOK_STOP="qwen:stop"
 # ============================================================================
 # ============================================================================
 # Check and load OAuth credentials if available
+# WARNING: HIGH RISK - OAuth fallback to consumer web endpoint
+# This reads local OAuth credentials and points to https://chat.qwen.ai/api
+# Compliance risk: Should use official API only, not consumer web login state
+# See: GPT-5.4 compliance audit 2026-03-27
+
 qwen_check_oauth() {
     # Skip if QWEN_API_KEY is already set
     if [[ -n "${QWEN_API_KEY:-}" ]]; then
@@ -130,6 +135,19 @@ PY
 )
         
         if [[ -n "$token_info" && "$token_info" != "EXPIRED" ]]; then
+            # COMPLIANCE GATE: Require user confirmation for OAuth fallback
+            if [[ -z "${QWEN_OAUTH_CONFIRMED:-}" ]]; then
+                echo "⚠️  WARNING: Using OAuth fallback to consumer web endpoint (https://chat.qwen.ai/api)" >&2
+                echo "⚠️  This uses your personal web login credentials, not official API." >&2
+                echo "⚠️  For production use, set QWEN_API_KEY to use official API." >&2
+                echo "" >&2
+                echo "To proceed with OAuth fallback, set QWEN_OAUTH_CONFIRMED=1" >&2
+                echo "Example: export QWEN_OAUTH_CONFIRMED=1" >&2
+                echo "" >&2
+                # Do NOT set credentials if not confirmed
+                return 1
+            fi
+            
             export QWEN_API_KEY="$token_info"
             export QWEN_BASE_URL="https://chat.qwen.ai/api"
         fi
