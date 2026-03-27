@@ -143,7 +143,7 @@ qwenx --help
 
 - **迁移问题**: 查看 [更新指南](../docs/UPDATE-QWENX-GUIDE.md)
 - **配置问题**: 查看 [配置指南](../docs/QWENX-CONFIG-GUIDE.md)
-- **GitHub Issues**: https://github.com/your-org/oh-my-litecode/issues
+- **GitHub Issues**: https://github.com/Hope2333/oh-my-litecode/issues
 
 ---
 
