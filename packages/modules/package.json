@@ -1,0 +1,66 @@
+{
+  "name": "@oml/modules",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./backup": {
+      "import": "./dist/backup/index.js",
+      "types": "./dist/backup/index.d.ts"
+    },
+    "./cache": {
+      "import": "./dist/cache/index.js",
+      "types": "./dist/cache/index.d.ts"
+    },
+    "./cloud": {
+      "import": "./dist/cloud/index.js",
+      "types": "./dist/cloud/index.d.ts"
+    },
+    "./conflict": {
+      "import": "./dist/conflict/index.js",
+      "types": "./dist/conflict/index.d.ts"
+    },
+    "./error": {
+      "import": "./dist/error/index.js",
+      "types": "./dist/error/index.d.ts"
+    },
+    "./i18n": {
+      "import": "./dist/i18n/index.js",
+      "types": "./dist/i18n/index.d.ts"
+    },
+    "./perf": {
+      "import": "./dist/perf/index.js",
+      "types": "./dist/perf/index.d.ts"
+    },
+    "./switchers": {
+      "import": "./dist/switchers/index.js",
+      "types": "./dist/switchers/index.d.ts"
+    },
+    "./tui": {
+      "import": "./dist/tui/index.js",
+      "types": "./dist/tui/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@oml/core": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.3.0",
+    "eslint": "^8.56.0"
+  }
+}

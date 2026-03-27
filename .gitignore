@@ -1,29 +1,46 @@
-# TypeScript build
-dist/
-bin/oml.js
-bin/oml.js.map
-bin/*.d.ts
-
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
 
-# Test
+# Build output
+dist/
+build/
+
+# Test coverage
 coverage/
-*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# OML Runtime
-.oml/sessions/
-.oml/pool/
-.oml/hooks/
-.oml/cache/
-.oml/tasks/
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Turbo
+.turbo
+
+# Vitest
+vitest-results.json
+
+# Local AI working state
+.ai/
+.omx/
+.sisyphus/
+AGENTS.md
+sessions/
