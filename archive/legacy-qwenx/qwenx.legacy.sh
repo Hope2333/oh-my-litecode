@@ -11,7 +11,7 @@ export HOME="${_FAKEHOME}"
 SETTINGS_FILE="${_FAKEHOME}/.qwen/settings.json"
 
 # Existing provider env (kept as current behavior)
-export QWEN_API_KEY="sk-mf0RD9eiVXaLiECaCZDcwl8c9qGWx135JzJwFnDJlfyYSZF7"
+export QWEN_API_KEY="sk-..ZF7"
 
 # Context7 key storage is only allowed under qwenx
 CTX7_DIR="${_FAKEHOME}/.qwenx/secrets"
