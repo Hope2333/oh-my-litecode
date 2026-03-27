@@ -187,3 +187,49 @@ Per GPT-5.4 recommendations, choose next narrow batch:
 ---
 
 **Updated by Qwen on 2026-03-27**: All 3 tasks complete, verification passed
+
+---
+
+## v0.2.1-bashoff Release Summary
+
+**Date**: 2026-03-27  
+**Tag**: `v0.2.1-bashoff`  
+**Commit**: e2eb417
+
+### Changes
+
+- **19 bash files archived** to `archive/bash-legacy/`
+- **Compliance gate** added to `architecture:check`
+- **User confirmation** for OAuth fallback
+- **src/ archived** to `archive/src-legacy/`
+
+### File Statistics
+
+| Type | Before | After | Change |
+|------|--------|-------|--------|
+| Bash | 187 | 168 | -19 archived |
+| TypeScript | 3252 | 3252 | Active |
+| Python | 33 | 33 | Retained |
+
+### Verification
+
+```
+npm run architecture:check  ✅
+npm run build               ✅ (FULL TURBO)
+npm run typecheck           ✅ (FULL TURBO)
+npm test                    ✅ (113 tests, FULL TURBO)
+```
+
+### Next Steps
+
+1. **Phase 2: Plugins** (124 files)
+   - Evaluate retention vs migration
+   - Priority: Qwen, build, plan agents
+
+2. **Phase 3: Tools** (13 files)
+   - `lib/*.sh`, `scripts/*.sh`, `bin/*.sh`
+   - Evaluate necessity
+
+---
+
+**Updated by Qwen on 2026-03-27**: v0.2.1-bashoff released
