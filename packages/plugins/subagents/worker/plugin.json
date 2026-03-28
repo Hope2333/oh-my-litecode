@@ -1,0 +1,32 @@
+{
+  "name": "worker",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Worker Subagent for spawning and managing subagent tasks with Commander-Worker architecture",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20"],
+  "config": {
+    "maxConcurrentTasks": 5,
+    "taskTimeout": 3600,
+    "logRetention": 7
+  },
+  "commands": [
+    {"name": "spawn", "description": "Spawn a new subagent task"},
+    {"name": "status", "description": "Show task status"},
+    {"name": "logs", "description": "Show task logs"},
+    {"name": "cancel", "description": "Cancel running task"},
+    {"name": "wait", "description": "Wait for all tasks"},
+    {"name": "info", "description": "Show task details"}
+  ],
+  "features": {
+    "taskSpawning": true,
+    "taskManagement": true,
+    "scopeIsolation": true,
+    "backgroundExecution": true,
+    "logStreaming": true,
+    "conflictDetection": true
+  }
+}

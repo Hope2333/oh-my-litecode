@@ -1,0 +1,32 @@
+{
+  "name": "scout",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Scout Subagent for code analysis, dependency mapping, and repository statistics",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20"],
+  "config": {
+    "outputFormat": "markdown",
+    "maxDepth": 10,
+    "excludePatterns": "node_modules,.git,__pycache__,.venv,dist,build,.cache,target,coverage"
+  },
+  "commands": [
+    {"name": "analyze", "description": "Analyze codebase structure and complexity"},
+    {"name": "tree", "description": "Generate file tree visualization"},
+    {"name": "deps", "description": "Analyze dependencies and imports"},
+    {"name": "report", "description": "Generate comprehensive analysis report"},
+    {"name": "stats", "description": "Show file type statistics"}
+  ],
+  "features": {
+    "codebaseAnalysis": true,
+    "fileTreeVisualization": true,
+    "dependencyMapping": true,
+    "complexityAnalysis": true,
+    "statisticsGeneration": true,
+    "comprehensiveReporting": true
+  },
+  "outputFormats": ["json", "markdown", "text"]
+}

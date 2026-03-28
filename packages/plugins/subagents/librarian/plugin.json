@@ -1,0 +1,55 @@
+{
+  "name": "librarian",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Librarian Subagent for documentation search, Context7 queries, web search, and knowledge compilation",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20"],
+  "config": {
+    "maxResults": 10,
+    "outputFormat": "markdown",
+    "context7Enabled": true,
+    "webSearchEnabled": true,
+    "cacheEnabled": true,
+    "cacheTTL": 3600
+  },
+  "commands": [
+    {
+      "name": "search",
+      "description": "Search documentation (Context7 + local)"
+    },
+    {
+      "name": "query",
+      "description": "Query Context7 MCP for library documentation"
+    },
+    {
+      "name": "websearch",
+      "description": "Web search using Exa MCP"
+    },
+    {
+      "name": "compile",
+      "description": "Compile knowledge from multiple sources"
+    },
+    {
+      "name": "sources",
+      "description": "List and manage citation sources"
+    },
+    {
+      "name": "cache",
+      "description": "Manage search cache"
+    }
+  ],
+  "features": {
+    "context7Integration": true,
+    "webSearchIntegration": true,
+    "resultDeduplication": true,
+    "citationTracking": true,
+    "knowledgeCompilation": true,
+    "cacheManagement": true,
+    "multiSourceSearch": true
+  },
+  "outputFormats": ["json", "markdown", "text"]
+}
