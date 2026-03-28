@@ -1,0 +1,26 @@
+{
+  "name": "@oml/plugin-qwen",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@oml/core": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.3.0"
+  },
+  "files": [
+    "dist",
+    "plugin.json",
+    "README.md"
+  ]
+}
