@@ -1,0 +1,17 @@
+{
+  "name": "grep-app",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Grep-App MCP 服务 - 自然语言搜索、正则匹配、代码统计与文件发现",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20", "grep", "find"],
+  "config": {
+    "defaultPath": ".",
+    "maxResults": 100,
+    "excludeDirs": ["node_modules", ".git", "__pycache__", ".venv", "venv", "dist", "build"],
+    "mode": "stdio"
+  }
+}

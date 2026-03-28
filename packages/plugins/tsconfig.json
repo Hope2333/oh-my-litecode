@@ -1,6 +1,15 @@
 {
   "files": [],
   "references": [
-    { "path": "./agents/qwen" }
+    { "path": "./agents/qwen" },
+    { "path": "./agents/build" },
+    { "path": "./agents/plan" },
+    { "path": "./subagents/librarian" },
+    { "path": "./subagents/reviewer" },
+    { "path": "./subagents/scout" },
+    { "path": "./subagents/worker" },
+    { "path": "./mcps/context7" },
+    { "path": "./mcps/grep-app" },
+    { "path": "./mcps/websearch" }
   ]
 }

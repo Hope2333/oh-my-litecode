@@ -1,0 +1,18 @@
+{
+  "name": "websearch",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Web Search MCP service using Exa AI - Provides web search and code context retrieval",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20", "curl"],
+  "config": {
+    "baseUrl": "https://api.exa.ai",
+    "apiKey": "",
+    "timeout": 30,
+    "cacheEnabled": true,
+    "cacheTtl": 3600
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "context7",
+  "version": "0.2.0",
+  "type": "mcp",
+  "description": "Context7 MCP 服务 - 文档查询与代码上下文增强",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20", "npx"],
+  "config": {
+    "mode": "stdio",
+    "apiKey": "",
+    "baseUrl": "https://mcp.context7.com/mcp"
+  }
+}
