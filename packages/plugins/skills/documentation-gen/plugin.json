@@ -1,0 +1,8 @@
+{
+  "name": "documentation-gen",
+  "version": "0.2.0",
+  "type": "skills",
+  "description": "Documentation generator",
+  "main": "dist/index.js",
+  "license": "MIT"
+}

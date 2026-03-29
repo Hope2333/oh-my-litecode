@@ -10,6 +10,16 @@
     { "path": "./subagents/worker" },
     { "path": "./mcps/context7" },
     { "path": "./mcps/grep-app" },
-    { "path": "./mcps/websearch" }
+    { "path": "./mcps/websearch" },
+    { "path": "./mcps/filesystem" },
+    { "path": "./mcps/git" },
+    { "path": "./mcps/weather" },
+    { "path": "./mcps/translation" },
+    { "path": "./mcps/notification" },
+    { "path": "./skills/code-review" },
+    { "path": "./skills/security-scan" },
+    { "path": "./skills/test-coverage" },
+    { "path": "./skills/documentation-gen" },
+    { "path": "./skills/performance-analysis" }
   ]
 }

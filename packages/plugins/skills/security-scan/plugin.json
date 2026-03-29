@@ -1,0 +1,8 @@
+{
+  "name": "security-scan",
+  "version": "0.2.0",
+  "type": "skills",
+  "description": "Security scanning agent",
+  "main": "dist/index.js",
+  "license": "MIT"
+}

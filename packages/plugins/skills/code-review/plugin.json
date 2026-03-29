@@ -1,0 +1,8 @@
+{
+  "name": "code-review",
+  "version": "0.2.0",
+  "type": "skills",
+  "description": "Code review agent",
+  "main": "dist/index.js",
+  "license": "MIT"
+}

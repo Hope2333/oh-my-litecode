@@ -1,0 +1,8 @@
+{
+  "name": "weather",
+  "version": "0.2.0",
+  "type": "mcps",
+  "description": "Weather data MCP",
+  "main": "dist/index.js",
+  "license": "MIT"
+}

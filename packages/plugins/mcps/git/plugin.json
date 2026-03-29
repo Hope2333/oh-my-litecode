@@ -1,0 +1,8 @@
+{
+  "name": "git",
+  "version": "0.2.0",
+  "type": "mcps",
+  "description": "Git operations MCP",
+  "main": "dist/index.js",
+  "license": "MIT"
+}

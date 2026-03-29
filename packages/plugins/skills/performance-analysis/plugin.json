@@ -1,0 +1,8 @@
+{
+  "name": "performance-analysis",
+  "version": "0.2.0",
+  "type": "skills",
+  "description": "Performance analysis agent",
+  "main": "dist/index.js",
+  "license": "MIT"
+}

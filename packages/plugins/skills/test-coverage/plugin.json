@@ -1,0 +1,8 @@
+{
+  "name": "test-coverage",
+  "version": "0.2.0",
+  "type": "skills",
+  "description": "Test coverage analysis",
+  "main": "dist/index.js",
+  "license": "MIT"
+}

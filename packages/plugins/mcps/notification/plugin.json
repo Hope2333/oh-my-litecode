@@ -1,0 +1,8 @@
+{
+  "name": "notification",
+  "version": "0.2.0",
+  "type": "mcps",
+  "description": "Notification service MCP",
+  "main": "dist/index.js",
+  "license": "MIT"
+}
