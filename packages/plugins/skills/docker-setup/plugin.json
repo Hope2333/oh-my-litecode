@@ -1,0 +1,13 @@
+{
+  "name": "docker-setup",
+  "version": "0.2.0",
+  "type": "skill",
+  "description": "Docker-setup skill for OML",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20"],
+  "commands": [],
+  "features": {}
+}

@@ -1,0 +1,17 @@
+{
+  "name": "debugger",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Bug finding, stack trace analysis, and fix suggestions",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20"],
+  "commands": [
+  {"name": "find_bugs", "description": "Find bugs in code"},
+  {"name": "analyze_stack_trace", "description": "Analyze stack traces"},
+  {"name": "suggest_fixes", "description": "Suggest bug fixes"}
+],
+  "features": {}
+}

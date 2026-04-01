@@ -1,0 +1,28 @@
+{
+  "name": "architect",
+  "version": "0.2.0",
+  "type": "subagent",
+  "description": "Architecture analysis, improvement suggestions, and design pattern recommendations",
+  "author": "OML Team",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "platforms": ["termux", "gnu-linux"],
+  "dependencies": ["nodejs>=20"],
+  "config": {
+    "outputFormat": "markdown",
+    "analysisLevel": "standard",
+    "maxDepth": 10
+  },
+  "commands": [
+    {"name": "analyze_architecture", "description": "Analyze codebase architecture"},
+    {"name": "suggest_improvements", "description": "Suggest architecture improvements"},
+    {"name": "check_patterns", "description": "Check design patterns usage"},
+    {"name": "generate_docs", "description": "Generate architecture documentation"}
+  ],
+  "features": {
+    "architectureAnalysis": true,
+    "improvementSuggestions": true,
+    "patternDetection": true,
+    "documentationGeneration": true
+  }
+}
