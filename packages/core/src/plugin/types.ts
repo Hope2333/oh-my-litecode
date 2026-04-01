@@ -8,6 +8,8 @@ export type PluginType = 'agent' | 'subagent' | 'mcp' | 'skill';
 
 export type PluginStatus = 'enabled' | 'disabled' | 'installed';
 
+export type ScriptType = 'shell' | 'typescript' | 'javascript';
+
 export interface Plugin {
   name: string;
   type: PluginType;
@@ -17,6 +19,7 @@ export interface Plugin {
   status: PluginStatus;
   path: string;
   mainScript?: string;
+  scriptType?: ScriptType;
   dependencies?: string[];
   config?: Record<string, unknown>;
   installedAt: Date;

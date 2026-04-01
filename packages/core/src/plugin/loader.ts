@@ -2,6 +2,7 @@
  * Plugin Loader - OML Core
  * 
  * Loads and manages plugins (agents, subagents, MCPs, skills).
+ * Supports both Shell and TypeScript plugins.
  */
 
 import * as fs from 'fs';
@@ -150,12 +151,27 @@ export class PluginLoader {
       }
     }
 
-    // Find main script
+    // Find main script - prioritize TypeScript builds
     let mainScript: string | undefined;
-    for (const script of ['main.sh', 'main.ts', 'main.js', 'index.sh', 'index.ts', 'index.js']) {
-      if (fs.existsSync(path.join(pluginDir, script))) {
-        mainScript = script;
-        break;
+    let scriptType: 'shell' | 'typescript' | 'javascript' = 'shell';
+    
+    // Check for TypeScript build output first (dist/index.js)
+    const distIndex = path.join(pluginDir, 'dist', 'index.js');
+    if (fs.existsSync(distIndex)) {
+      mainScript = 'dist/index.js';
+      scriptType = 'typescript';
+    } else {
+      // Check for source files in order of preference
+      for (const script of ['main.ts', 'index.ts', 'main.js', 'index.js', 'main.sh', 'index.sh']) {
+        if (fs.existsSync(path.join(pluginDir, script))) {
+          mainScript = script;
+          if (script.endsWith('.ts')) {
+            scriptType = 'typescript';
+          } else if (script.endsWith('.js')) {
+            scriptType = 'javascript';
+          }
+          break;
+        }
       }
     }
 
@@ -168,6 +184,7 @@ export class PluginLoader {
       status: this.enabledPlugins.has(name) ? 'enabled' : 'installed',
       path: pluginDir,
       mainScript,
+      scriptType,
       dependencies: meta.dependencies,
       config: meta.config,
       installedAt: this.getInstalledDate(pluginDir),
@@ -221,6 +238,20 @@ export class PluginLoader {
     } else if (fs.existsSync(source)) {
       // Copy from local path
       fs.cpSync(source, targetDir, { recursive: true });
+      
+      // Build TypeScript plugins if they have package.json with build script
+      const packageJsonPath = path.join(targetDir, 'package.json');
+      if (fs.existsSync(packageJsonPath)) {
+        try {
+          const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+          if (pkg.scripts?.build) {
+            // Run build command
+            await this.runBuildCommand(targetDir);
+          }
+        } catch (error) {
+          // Ignore build errors for now
+        }
+      }
     } else {
       throw new Error(`Invalid source: ${source}`);
     }
@@ -237,6 +268,21 @@ export class PluginLoader {
     }
 
     return plugin;
+  }
+
+  /**
+   * Run build command for TypeScript plugins
+   */
+  private async runBuildCommand(pluginDir: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      exec('npm run build', { cwd: pluginDir }, (error) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   /**
@@ -285,12 +331,75 @@ export class PluginLoader {
 
     const scriptPath = path.join(plugin.path, plugin.mainScript);
     const args = options?.args || [];
-    const env = { ...process.env, ...(options?.env || {}) };
+    
+    // Fix: Filter out undefined values from process.env
+    const env: Record<string, string> = {};
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) {
+        env[key] = value;
+      }
+    }
+    if (options?.env) {
+      for (const [key, value] of Object.entries(options.env)) {
+        if (value !== undefined) {
+          env[key] = value;
+        }
+      }
+    }
 
+    // Determine how to run based on script type
+    if (plugin.scriptType === 'typescript' || plugin.scriptType === 'javascript') {
+      return this.runTypeScriptPlugin(scriptPath, args, env, options?.timeout);
+    } else {
+      return this.runShellPlugin(scriptPath, args, env, options?.timeout);
+    }
+  }
+
+  /**
+   * Run a TypeScript/JavaScript plugin
+   */
+  private async runTypeScriptPlugin(
+    scriptPath: string,
+    args: string[],
+    env: Record<string, string>,
+    timeout?: number
+  ): Promise<PluginRunResult> {
+    return new Promise((resolve) => {
+      // Use node to run JavaScript/TypeScript compiled output
+      const command = `node ${scriptPath} ${args.join(' ')}`;
+      
+      exec(command, { env, timeout }, (error, stdout, stderr) => {
+        if (error) {
+          resolve({
+            success: false,
+            output: stdout,
+            error: stderr || error.message,
+            exitCode: 1,
+          });
+        } else {
+          resolve({
+            success: true,
+            output: stdout,
+            exitCode: 0,
+          });
+        }
+      });
+    });
+  }
+
+  /**
+   * Run a Shell plugin
+   */
+  private async runShellPlugin(
+    scriptPath: string,
+    args: string[],
+    env: Record<string, string>,
+    timeout?: number
+  ): Promise<PluginRunResult> {
     return new Promise((resolve) => {
       const command = `${scriptPath} ${args.join(' ')}`;
       
-      exec(command, { env, timeout: options?.timeout }, (error, stdout, stderr) => {
+      exec(command, { env, timeout }, (error, stdout, stderr) => {
         if (error) {
           resolve({
             success: false,
@@ -344,16 +453,87 @@ export class PluginLoader {
       JSON.stringify(meta, null, 2)
     );
 
-    // Create main.sh template
-    const mainScript = `#!/usr/bin/env bash
-# ${name} - ${description}
+    // Create package.json for TypeScript plugins
+    const packageJson = {
+      name: `@oml/plugin-${name}`,
+      version: '0.1.0',
+      type: 'module',
+      main: 'dist/index.js',
+      types: 'dist/index.d.ts',
+      scripts: {
+        build: 'tsc',
+        dev: 'tsc --watch',
+        test: 'vitest run',
+        clean: 'rm -rf dist',
+      },
+      dependencies: {
+        '@oml/core': '^0.3.0',
+      },
+      devDependencies: {
+        '@types/node': '^20.11.0',
+        'typescript': '^5.4.0',
+        'vitest': '^1.3.0',
+      },
+    };
+    fs.writeFileSync(
+      path.join(pluginDir, 'package.json'),
+      JSON.stringify(packageJson, null, 2)
+    );
 
-set -euo pipefail
+    // Create tsconfig.json
+    const tsconfig = {
+      extends: '../../tsconfig.json',
+      compilerOptions: {
+        outDir: 'dist',
+        rootDir: 'src',
+        declaration: true,
+        declarationMap: true,
+        sourceMap: true,
+      },
+      include: ['src/**/*'],
+      exclude: ['node_modules', 'dist', 'tests'],
+    };
+    fs.writeFileSync(
+      path.join(pluginDir, 'tsconfig.json'),
+      JSON.stringify(tsconfig, null, 2)
+    );
 
-echo "${name} v0.1.0"
+    // Create src directory and index.ts template
+    const srcDir = path.join(pluginDir, 'src');
+    fs.mkdirSync(srcDir, { recursive: true });
+    
+    const indexTs = `/**
+ * ${name} - ${description}
+ */
+
+export interface ${this.pascalCase(name)}Config {
+  enabled: boolean;
+}
+
+export class ${this.pascalCase(name)}Plugin {
+  private config: ${this.pascalCase(name)}Config;
+
+  constructor(config: Partial<${this.pascalCase(name)}Config> = {}) {
+    this.config = {
+      enabled: true,
+      ...config,
+    };
+  }
+
+  async initialize(): Promise<void> {
+    console.log('[${name}] Initializing...');
+  }
+
+  async shutdown(): Promise<void> {
+    console.log('[${name}] Shutting down...');
+  }
+
+  async execute(args: string[]): Promise<string> {
+    return '${name} executed successfully';
+  }
+}
 `;
-    fs.writeFileSync(path.join(pluginDir, 'main.sh'), mainScript);
-    fs.chmodSync(path.join(pluginDir, 'main.sh'), 0o755);
+    fs.writeFileSync(path.join(srcDir, 'index.ts'), indexTs);
 
     // Create README.md
     const readme = `# ${name}
@@ -366,6 +546,13 @@ ${description || 'A new OML plugin'}
 oml plugin run ${name}
 \`\`\`
 
+## Development
+
+\`\`\`bash
+npm run build
+npm test
+\`\`\`
+
 ## License
 
 MIT
@@ -374,6 +561,16 @@ MIT
 
     // Load and return the created plugin
     return (await this.loadPlugin(name, type))!;
+  }
+
+  /**
+   * Convert name to PascalCase
+   */
+  private pascalCase(name: string): string {
+    return name
+      .split(/[-_]/)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('');
   }
 
   /**
