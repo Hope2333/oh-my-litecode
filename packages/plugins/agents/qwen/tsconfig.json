@@ -1,16 +1,9 @@
 {
-  "extends": "../../../../tsconfig.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "downlevelIteration": true,
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler"
+    "composite": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"]
