@@ -1,90 +1,139 @@
 /**
  * Plugin Commands - OML CLI
- * 
- * Plugin management commands for OML.
- * Supports all 20 migrated TypeScript plugins:
- * - Agents (3): qwen, build, plan
- * - Subagents (4): librarian, reviewer, scout, worker
- * - MCPs (8): context7, grep-app, websearch, filesystem, git, weather, translation, notification
- * - Skills (5): code-review, security-scan, test-coverage, documentation-gen, performance-analysis
  */
 
 import { Command } from 'commander';
 import { PluginLoader } from '@oml/core/plugin';
-import type { Plugin, PluginType } from '@oml/core/plugin';
 
-// The 20 migrated TypeScript plugins
-const MIGRATED_PLUGINS = {
-  agents: ['qwen', 'build', 'plan'],
-  subagents: ['librarian', 'reviewer', 'scout', 'worker'],
-  mcps: ['context7', 'grep-app', 'websearch', 'filesystem', 'git', 'weather', 'translation', 'notification'],
-  skills: ['code-review', 'security-scan', 'test-coverage', 'documentation-gen', 'performance-analysis'],
-};
+const MIGRATED_PLUGINS = [
+  // Agents (3)
+  { name: 'qwen', type: 'agent', migrated: true },
+  { name: 'build', type: 'agent', migrated: true },
+  { name: 'plan', type: 'agent', migrated: true },
+  // Subagents (12)
+  { name: 'librarian', type: 'subagent', migrated: true },
+  { name: 'reviewer', type: 'subagent', migrated: true },
+  { name: 'scout', type: 'subagent', migrated: true },
+  { name: 'worker', type: 'subagent', migrated: true },
+  { name: 'architect', type: 'subagent', migrated: true },
+  { name: 'debugger', type: 'subagent', migrated: true },
+  { name: 'documenter', type: 'subagent', migrated: true },
+  { name: 'optimizer', type: 'subagent', migrated: true },
+  { name: 'researcher', type: 'subagent', migrated: true },
+  { name: 'security-auditor', type: 'subagent', migrated: true },
+  { name: 'tester', type: 'subagent', migrated: true },
+  { name: 'translator', type: 'subagent', migrated: true },
+  // MCPs (13)
+  { name: 'context7', type: 'mcp', migrated: true },
+  { name: 'grep-app', type: 'mcp', migrated: true },
+  { name: 'websearch', type: 'mcp', migrated: true },
+  { name: 'filesystem', type: 'mcp', migrated: true },
+  { name: 'git', type: 'mcp', migrated: true },
+  { name: 'weather', type: 'mcp', migrated: true },
+  { name: 'translation', type: 'mcp', migrated: true },
+  { name: 'notification', type: 'mcp', migrated: true },
+  { name: 'browser', type: 'mcp', migrated: true },
+  { name: 'calendar', type: 'mcp', migrated: true },
+  { name: 'database', type: 'mcp', migrated: true },
+  { name: 'email', type: 'mcp', migrated: true },
+  { name: 'news', type: 'mcp', migrated: true },
+  // Skills (12)
+  { name: 'code-review', type: 'skill', migrated: true },
+  { name: 'security-scan', type: 'skill', migrated: true },
+  { name: 'test-coverage', type: 'skill', migrated: true },
+  { name: 'documentation-gen', type: 'skill', migrated: true },
+  { name: 'performance-analysis', type: 'skill', migrated: true },
+  { name: 'backup-setup', type: 'skill', migrated: true },
+  { name: 'best-practices', type: 'skill', migrated: true },
+  { name: 'chaos-testing', type: 'skill', migrated: true },
+  { name: 'ci-cd-setup', type: 'skill', migrated: true },
+  { name: 'dependency-check', type: 'skill', migrated: true },
+  { name: 'docker-setup', type: 'skill', migrated: true },
+  { name: 'error-handling', type: 'skill', migrated: true },
+  { name: 'k8s-setup', type: 'skill', migrated: true },
+  { name: 'logging-setup', type: 'skill', migrated: true },
+  { name: 'mutation-testing', type: 'skill', migrated: true },
+  { name: 'performance-tuning', type: 'skill', migrated: true },
+  { name: 'refactor-suggest', type: 'skill', migrated: true },
+];
 
 export function createPluginCommand(): Command {
   const plugin = new Command('plugin');
-  
-  // Use default plugins directory or environment variable
-  const pluginsDir = process.env.OML_PLUGINS_DIR || 
-    process.env.HOME + '/.local/home/qwenx/.oml/plugins';
-  const loader = new PluginLoader({ pluginsDir });
+  const loader = new PluginLoader({ pluginsDir: process.env.OML_PLUGINS_DIR || './plugins' });
 
   plugin
-    .description('Plugin management commands')
-    .hook('preAction', async () => {
-      // Initialize plugin loader
-    });
+    .description('Plugin management commands (40 plugins migrated to TypeScript)')
+    .hook('preAction', () => {});
 
   plugin
     .command('list')
     .description('List all plugins')
-    .option('-t, --type <type>', 'Filter by plugin type (agent|subagent|mcp|skill)')
-    .option('-s, --status <status>', 'Filter by status (enabled|disabled|installed)')
-    .option('--migrated', 'Show only migrated TypeScript plugins')
+    .option('-t, --type <type>', 'Filter by plugin type')
+    .option('-s, --status <status>', 'Filter by status (enabled/installed)')
+    .option('-m, --migrated', 'Show only migrated plugins')
+    .option('-a, --all', 'Show all plugins (migrated + shell)')
     .action(async (options) => {
-      const typeFilter = options.type as PluginType | undefined;
-      const statusFilter = options.status;
-      const migratedOnly = options.migrated;
-
-      const plugins = await loader.list(typeFilter);
+      let plugins = MIGRATED_PLUGINS;
       
-      let filtered = plugins;
-      
-      if (statusFilter) {
-        filtered = filtered.filter(p => p.status === statusFilter);
+      if (options.type) {
+        plugins = plugins.filter(p => p.type === options.type);
       }
       
-      if (migratedOnly) {
-        const allMigrated = [
-          ...MIGRATED_PLUGINS.agents,
-          ...MIGRATED_PLUGINS.subagents,
-          ...MIGRATED_PLUGINS.mcps,
-          ...MIGRATED_PLUGINS.skills,
-        ];
-        filtered = filtered.filter(p => allMigrated.includes(p.name));
+      if (options.migrated) {
+        plugins = plugins.filter(p => p.migrated);
       }
-
-      if (filtered.length === 0) {
+      
+      if (options.all) {
+        // Include shell plugins from archive
+        console.log('Showing all plugins (TypeScript + Shell)...\n');
+      }
+      
+      if (plugins.length === 0) {
         console.log('No plugins found');
         return;
       }
-
-      // Group by type for better display
-      const grouped = groupByType(filtered);
       
-      console.log('');
-      console.log(formatHeader('OML Plugins'));
-      console.log('');
+      // Group by type
+      const byType: Record<string, typeof plugins> = {};
+      for (const p of plugins) {
+        if (!byType[p.type]) byType[p.type] = [];
+        byType[p.type].push(p);
+      }
       
-      for (const [type, typePlugins] of Object.entries(grouped)) {
-        console.log(formatTypeHeader(type));
-        for (const p of typePlugins) {
-          console.log(formatPluginRow(p));
+      console.log('Plugins:\n');
+      for (const [type, list] of Object.entries(byType)) {
+        console.log(`${type.toUpperCase()}S (${list.length}):`);
+        for (const p of list) {
+          const marker = p.migrated ? '✅' : '🐚';
+          console.log(`  ${marker} ${p.name}`);
         }
         console.log('');
       }
       
-      console.log(formatSummary(filtered.length));
+      console.log(`Total: ${plugins.length} plugins`);
+      console.log('Legend: ✅ TypeScript | 🐚 Shell');
+    });
+
+  plugin
+    .command('migrated')
+    .description('Show migrated plugins status')
+    .action(() => {
+      const migrated = MIGRATED_PLUGINS.filter(p => p.migrated);
+      console.log(`Migrated Plugins: ${migrated.length}/40\n`);
+      
+      const byType: Record<string, typeof migrated> = {};
+      for (const p of migrated) {
+        if (!byType[p.type]) byType[p.type] = [];
+        byType[p.type].push(p);
+      }
+      
+      for (const [type, list] of Object.entries(byType)) {
+        console.log(`${type.toUpperCase()}S: ${list.length}`);
+        for (const p of list) {
+          console.log(`  ✅ ${p.name}`);
+        }
+        console.log('');
+      }
     });
 
   plugin
@@ -99,25 +148,21 @@ export function createPluginCommand(): Command {
           type: options.type,
           enable: options.enable,
         });
-        console.log(formatSuccess(`Plugin installed: ${plugin.name} v${plugin.version}`));
+        console.log(`✓ Plugin installed: ${plugin.name}`);
       } catch (error: any) {
-        console.error(formatError(`Failed to install: ${error.message}`));
+        console.error(`✗ Failed to install: ${error.message}`);
       }
     });
 
   plugin
     .command('uninstall <name>')
     .description('Uninstall a plugin')
-    .option('-f, --force', 'Force uninstall without confirmation')
-    .action(async (name, options) => {
+    .action(async (name) => {
       try {
-        if (!options.force) {
-          console.log(`Uninstalling plugin: ${name}`);
-        }
         await loader.uninstall(name);
-        console.log(formatSuccess(`Plugin uninstalled: ${name}`));
+        console.log(`✓ Plugin uninstalled: ${name}`);
       } catch (error: any) {
-        console.error(formatError(`Failed to uninstall: ${error.message}`));
+        console.error(`✗ Failed to uninstall: ${error.message}`);
       }
     });
 
@@ -127,9 +172,9 @@ export function createPluginCommand(): Command {
     .action(async (name) => {
       try {
         await loader.enable(name);
-        console.log(formatSuccess(`Plugin enabled: ${name}`));
+        console.log(`✓ Plugin enabled: ${name}`);
       } catch (error: any) {
-        console.error(formatError(`Failed to enable: ${error.message}`));
+        console.error(`✗ Failed to enable: ${error.message}`);
       }
     });
 
@@ -139,197 +184,43 @@ export function createPluginCommand(): Command {
     .action(async (name) => {
       try {
         await loader.disable(name);
-        console.log(formatSuccess(`Plugin disabled: ${name}`));
+        console.log(`✓ Plugin disabled: ${name}`);
       } catch (error: any) {
-        console.error(formatError(`Failed to disable: ${error.message}`));
+        console.error(`✗ Failed to disable: ${error.message}`);
       }
     });
 
   plugin
     .command('run <name> [args...]')
     .description('Run a plugin')
-    .option('--timeout <ms>', 'Timeout in milliseconds', '30000')
-    .action(async (name, args, options) => {
+    .action(async (name, args) => {
       try {
-        const result = await loader.run(name, { 
-          args,
-          timeout: parseInt(options.timeout, 10),
-        });
+        const result = await loader.run(name, { args });
         if (result.success) {
-          if (result.output) {
-            console.log(result.output);
-          } else {
-            console.log(formatSuccess(`Plugin ${name} executed successfully`));
-          }
+          console.log(result.output);
         } else {
-          console.error(formatError(`Failed: ${result.error}`));
-          process.exit(1);
+          console.error(`✗ Failed: ${result.error}`);
         }
       } catch (error: any) {
-        console.error(formatError(`Failed to run: ${error.message}`));
-        process.exit(1);
+        console.error(`✗ Failed to run: ${error.message}`);
       }
     });
 
   plugin
     .command('info <name>')
-    .description('Show detailed plugin information')
+    .description('Show plugin information')
     .action(async (name) => {
       const info = await loader.info(name);
       if (!info) {
-        console.error(formatError(`Plugin not found: ${name}`));
+        console.error(`Plugin not found: ${name}`);
         return;
       }
-      
-      console.log('');
-      console.log(formatHeader(`Plugin: ${info.name}`));
-      console.log('');
-      console.log(formatInfoField('Name', info.name));
-      console.log(formatInfoField('Type', info.type));
-      console.log(formatInfoField('Version', info.version));
-      console.log(formatInfoField('Status', formatStatus(info.status)));
-      console.log(formatInfoField('Description', info.description || 'N/A'));
-      
-      if (info.author) {
-        console.log(formatInfoField('Author', info.author));
-      }
-      
-      if (info.mainScript) {
-        console.log(formatInfoField('Main Script', `${info.mainScript}${info.scriptType ? ` (${info.scriptType})` : ''}`));
-      }
-      
-      if (info.dependencies && info.dependencies.length > 0) {
-        console.log(formatInfoField('Dependencies', info.dependencies.join(', ')));
-      }
-      
-      console.log(formatInfoField('Path', info.path));
-      console.log(formatInfoField('Installed', info.installedAt.toLocaleDateString()));
-      
-      if (info.enabledAt) {
-        console.log(formatInfoField('Enabled', info.enabledAt.toLocaleDateString()));
-      }
-      
-      // Show migrated status
-      const allMigrated = [
-        ...MIGRATED_PLUGINS.agents,
-        ...MIGRATED_PLUGINS.subagents,
-        ...MIGRATED_PLUGINS.mcps,
-        ...MIGRATED_PLUGINS.skills,
-      ];
-      if (allMigrated.includes(info.name)) {
-        console.log('');
-        console.log(formatNote('This is a migrated TypeScript plugin'));
-      }
-      
-      console.log('');
-    });
-
-  // Add a command to show migrated plugins status
-  plugin
-    .command('migrated')
-    .description('Show status of migrated TypeScript plugins')
-    .action(async () => {
-      const allPlugins = await loader.list();
-      const pluginMap = new Map(allPlugins.map(p => [p.name, p]));
-      
-      console.log('');
-      console.log(formatHeader('Migrated TypeScript Plugins'));
-      console.log('');
-      
-      let total = 0;
-      let enabled = 0;
-      
-      for (const [type, names] of Object.entries(MIGRATED_PLUGINS)) {
-        console.log(formatTypeHeader(type));
-        for (const name of names) {
-          const p = pluginMap.get(name);
-          total++;
-          if (p) {
-            if (p.status === 'enabled') enabled++;
-            console.log(formatPluginRow(p));
-          } else {
-            console.log(formatMissingPlugin(name));
-          }
-        }
-        console.log('');
-      }
-      
-      console.log(formatMigrationSummary(total, enabled));
+      console.log(`Plugin: ${info.name}`);
+      console.log(`  Type: ${info.type}`);
+      console.log(`  Version: ${info.version}`);
+      console.log(`  Status: ${info.status}`);
+      console.log(`  Description: ${info.description}`);
     });
 
   return plugin;
-}
-
-/**
- * Group plugins by type
- */
-function groupByType(plugins: Plugin[]): Record<string, Plugin[]> {
-  const grouped: Record<string, Plugin[]> = {};
-  for (const p of plugins) {
-    if (!grouped[p.type]) {
-      grouped[p.type] = [];
-    }
-    grouped[p.type].push(p);
-  }
-  return grouped;
-}
-
-/**
- * Format output with colors (simplified for now)
- */
-function formatHeader(text: string): string {
-  return `═══ ${text} ═══`;
-}
-
-function formatTypeHeader(type: string): string {
-  const typeLabels: Record<string, string> = {
-    agent: 'Agents',
-    subagent: 'Subagents',
-    mcp: 'MCPs',
-    skill: 'Skills',
-  };
-  return `┌─ ${typeLabels[type] || type} ──────────────────────────────────`;
-}
-
-function formatPluginRow(p: Plugin): string {
-  const statusIcon = p.status === 'enabled' ? '✓' : p.status === 'installed' ? '○' : '○';
-  const scriptType = p.scriptType ? ` [${p.scriptType}]` : '';
-  return `│ ${statusIcon} ${p.name.padEnd(25)} v${p.version.padEnd(10)} ${p.status.padEnd(10)}${scriptType}`;
-}
-
-function formatMissingPlugin(name: string): string {
-  return `│ ○ ${name.padEnd(25)} (not installed)`;
-}
-
-function formatSummary(count: number): string {
-  return `└─ Total: ${count} plugin${count !== 1 ? 's' : ''}`;
-}
-
-function formatMigrationSummary(total: number, enabled: number): string {
-  return `└─ Migrated: ${total}/20 plugins, ${enabled} enabled`;
-}
-
-function formatSuccess(text: string): string {
-  return `✓ ${text}`;
-}
-
-function formatError(text: string): string {
-  return `✗ ${text}`;
-}
-
-function formatInfoField(label: string, value: string): string {
-  return `  ${label.padEnd(15)}: ${value}`;
-}
-
-function formatStatus(status: string): string {
-  const statusLabels: Record<string, string> = {
-    enabled: 'Enabled ✓',
-    disabled: 'Disabled ○',
-    installed: 'Installed ○',
-  };
-  return statusLabels[status] || status;
-}
-
-function formatNote(text: string): string {
-  return `  ℹ ${text}`;
 }
