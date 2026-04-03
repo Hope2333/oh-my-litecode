@@ -70,6 +70,18 @@ Plugin safety default (Termux):
 
 MIT License - see [LICENSE](LICENSE) for details.
 
+## AI-LTC Integration
+
+OML serves as the **Body** (runtime execution layer) in the AI-LTC Brain/Body architecture:
+
+| Layer | Framework | Role |
+|-------|-----------|------|
+| **Brain** | [AI-LTC](https://github.com/Hope2333/AI-LTC) | State machine, memory, error recovery, cross-repo sync |
+| **Body** | OML (this repo) | Plugin loading, MCP gateway, session management, worker pool, hooks |
+
+Bridge architecture: [AI-LTC docs/OML-BRIDGE-ARCHITECTURE.md](https://github.com/Hope2333/AI-LTC/blob/main/docs/OML-BRIDGE-ARCHITECTURE.md)
+Integration plan: [AI-LTC docs/OML-INTEGRATION-PLAN.md](https://github.com/Hope2333/AI-LTC/blob/main/docs/OML-INTEGRATION-PLAN.md)
+
 ## Upstream Projects
 
 - [OpenCode](https://github.com/anomalyco/opencode) - MIT License

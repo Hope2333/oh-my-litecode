@@ -8,6 +8,40 @@
 
 ---
 
+## 2026-04-03 AI-LTC v1.5.10 Integration Update
+
+**Status**: ✅ Complete  
+**AI-LTC Version**: v1.5.10-sqwen36pre  
+**Lane**: oml-ai-ltc-bridge-integration
+
+### What Changed
+
+| Component | Change |
+|-----------|--------|
+| `.ai/system/ai-ltc-config.json` | Upgraded to v1.5.10-sqwen36pre, preview branch, Qwen 3.6 Plus |
+| `README.md` | Added AI-LTC Brain/Body integration section |
+| AI-LTC repo | 4 new docs: bridge architecture, integration plan, plugin adapter, brain/body separation |
+
+### AI-LTC Brain + OML Body Architecture
+
+OML is the **Body** (runtime execution): plugin loading, MCP gateway, session management, worker pool, hooks engine.
+AI-LTC is the **Brain** (coordination): state machine, memory, error recovery, cross-repo version sync.
+
+Bridge strategy: Thin adapter (~500 lines TS) mapping AI-LTC state transitions → OML hook triggers.
+
+### Next Actions
+
+1. Phase 1: Bridge Foundation — implement `bridge/oml-bridge.ts` and event mapping
+2. Phase 2: Platform Adapters — OpenCode + Claude Code adapter deployment
+3. Phase 3: Memory & Context Integration — connect AI-LTC memory with OML sessions
+4. Phase 4: Automation & CI — integration tests, deploy scripts, version sync
+
+See AI-LTC repo: `docs/OML-INTEGRATION-PLAN.md` for full roadmap.
+
+---
+
+---
+
 ## Status
 
 - **Decision**: review gate reached, direction corrected, execution may resume under tighter monitoring
