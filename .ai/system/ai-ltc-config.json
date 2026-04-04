@@ -1,0 +1,56 @@
+{
+  "schema_version": "1",
+  "framework_version": "v1.5.11-sqwen36pre",
+  "source_mode": "folder",
+  "source_priority": ["folder", "git_repo", "cloud_reference"],
+  "folder_root": "/home/miao/develop/AI-LTC",
+  "repo_url": "https://github.com/Hope2333/AI-LTC",
+  "repo_ref": "v1.5-superqwen36-preview",
+  "cloud_reference": "",
+  "allow_qwen_refresh_local": true,
+  "last_framework_check": "2026-04-03",
+  "installed_framework_tag": "v1.5.11-sqwen36pre",
+  "auto_check_on_init": true,
+  "project_state": "midstream",
+  "working_language": "English",
+  "human_summary_language": "Chinese",
+  "human_input_language_policy": "auto-detect",
+  "skeleton_status": "upgraded",
+  "default_operator_model": "qwen-3.6-plus-free",
+  "default_operator_prompt": "qwen-generalist-autopilot.prompt.md",
+  "supervisory_prompt": "qwen-supervisory-generalist.prompt.md",
+  "architect_prompt": "gpt-bootstrap-architect.prompt.md",
+  "auditor_prompt": "gpt-optimizer-auditor.prompt.md",
+  "resolver_note": "OML is the Body (plugin runtime, MCP gateway, session management, worker pool). AI-LTC is the Brain (state machine, memory, error recovery). Bridge integration planned per docs/OML-INTEGRATION-PLAN.md in AI-LTC repo.",
+  "experimental_mode": {
+    "enabled": true,
+    "operator_model": "qwen-3.6-plus-free",
+    "allow_gpt_prompts": true,
+    "aggressive_mcp": true,
+    "max_parallel_subagents": 5,
+    "window_start": "2026-03-30",
+    "window_end": ""
+  },
+  "multi_session": {
+    "enabled": true,
+    "max_concurrent": 3,
+    "session_timeout_minutes": 10,
+    "retry_limit": 1,
+    "cleanup_after_merge": true,
+    "keep_last_n_per_role": 3
+  },
+  "observability": {
+    "logging_enabled": true,
+    "log_level": "info",
+    "log_dir": ".ai/logs",
+    "snapshot_on_phase_change": true,
+    "snapshot_dir": ".ai/history/snapshots",
+    "max_log_lines": 10000,
+    "metrics": {
+      "track_task_success_rate": true,
+      "track_retry_count": true,
+      "track_token_saved": false,
+      "track_escalation_frequency": true
+    }
+  }
+}
