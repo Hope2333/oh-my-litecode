@@ -8,6 +8,7 @@ import { createCloudCommand } from './commands/cloud.js';
 import { createPerfCommand } from './commands/perf.js';
 import { createTuiCommand } from './commands/tui.js';
 import { createQwenCommand } from './commands/qwen.js';
+import { createBridgeCommand } from './commands/bridge.js';
 
 export function createCLI(): Command {
   const cli = new Command();
@@ -18,6 +19,7 @@ export function createCLI(): Command {
     .version('0.3.0');
 
   cli.addCommand(createQwenCommand());
+  cli.addCommand(createBridgeCommand());
   cli.addCommand(createPluginCommand());
   cli.addCommand(createCloudCommand());
   cli.addCommand(createPerfCommand());

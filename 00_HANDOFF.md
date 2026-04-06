@@ -3,7 +3,7 @@
 **Date**: 2026-03-27  
 **From**: GPT corrective strategist  
 **To**: Qwen default operator  
-**Lane**: shell-migration-execution  
+**Lane**: oml-ai-ltc-bridge-integration  
 **AI-LTC Version**: v1
 
 ---

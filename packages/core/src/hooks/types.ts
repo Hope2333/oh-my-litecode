@@ -5,13 +5,23 @@
  */
 
 export type HookEvent = 
+  // Session lifecycle
   | 'session:create'
   | 'session:delete'
+  | 'session:stop'
+  // AI interaction
   | 'prompt:submit'
   | 'tool:pre-use'
   | 'tool:post-use'
   | 'response:receive'
-  | 'session:stop';
+  // AI-LTC Bridge events
+  | 'bridge:execution:start'
+  | 'bridge:review:start'
+  | 'bridge:optimize:start'
+  | 'bridge:checkpoint:create'
+  | 'bridge:blocked:notify'
+  | 'bridge:blocked:resolve'
+  | 'bridge:done:notify';
 
 export interface HookContext {
   event: HookEvent;

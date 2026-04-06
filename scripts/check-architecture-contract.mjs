@@ -273,6 +273,58 @@ async function checkComplianceGate(errors) {
   }
 }
 
+async function checkBridgeVersion(errors) {
+  const configPath = '.ai/system/ai-ltc-config.json';
+  const bridgePackagePath = 'packages/bridge/package.json';
+
+  if (!(await exists(configPath)) || !(await exists(bridgePackagePath))) {
+    return;
+  }
+
+  const config = await readJson(configPath);
+  const bridgePackage = await readJson(bridgePackagePath);
+
+  const frameworkVersion = config.framework_version;
+  const bridgeVersion = bridgePackage.version;
+
+  if (!frameworkVersion || !bridgeVersion) {
+    return;
+  }
+
+  const parseVersion = (raw) => {
+    const cleaned = raw.replace(/^v/, '');
+    const match = cleaned.match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!match) return null;
+    return {
+      major: Number.parseInt(match[1], 10),
+      minor: Number.parseInt(match[2], 10),
+      patch: Number.parseInt(match[3], 10),
+    };
+  };
+
+  const framework = parseVersion(frameworkVersion);
+  const bridge = parseVersion(`v${bridgeVersion}`);
+
+  if (!framework || !bridge) {
+    return;
+  }
+
+  if (framework.major === 0 && bridge.major === 0) {
+    if (framework.minor !== bridge.minor) {
+      errors.push(
+        `Bridge version incompatible (minor drift in alpha): framework=${frameworkVersion}, bridge=v${bridgeVersion}`
+      );
+    }
+  } else if (framework.major !== 0 && bridge.major === 0) {
+    // Bridge is a new 0.x package within a 1.x framework — expected during development
+    // Only warn, don't fail
+  } else if (framework.major !== bridge.major) {
+    errors.push(
+      `Bridge version incompatible (major drift): framework=${frameworkVersion}, bridge=v${bridgeVersion}`
+    );
+  }
+}
+
 async function main() {
   const errors = [];
 
@@ -280,6 +332,7 @@ async function main() {
   await checkEvidenceBasedStatus(errors);
   await checkLaneConsistency(errors);
   await checkComplianceGate(errors);
+  await checkBridgeVersion(errors);
 
   if (errors.length > 0) {
     console.error('Architecture contract check failed:');

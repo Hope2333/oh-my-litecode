@@ -1,0 +1,32 @@
+{
+  "name": "@oml/bridge",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "AI-LTC Bridge - maps AI-LTC state transitions to OML hook triggers",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "import": "./dist/index.js", "types": "./dist/index.d.ts" },
+    "./types": { "import": "./dist/types.js", "types": "./dist/types.d.ts" },
+    "./config": { "import": "./dist/config.js", "types": "./dist/config.d.ts" },
+    "./events": { "import": "./dist/events.js", "types": "./dist/events.d.ts" },
+    "./version": { "import": "./dist/version-sync.js", "types": "./dist/version-sync.d.ts" }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@oml/core": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.3.0",
+    "eslint": "^8.56.0"
+  }
+}

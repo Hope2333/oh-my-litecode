@@ -18,6 +18,7 @@
   },
   "include": [],
   "references": [
-    { "path": "packages/core" }
+    { "path": "packages/core" },
+    { "path": "packages/bridge" }
   ]
 }

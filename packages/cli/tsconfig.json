@@ -7,13 +7,16 @@
     "baseUrl": ".",
     "paths": {
       "@oml/core/*": ["../core/src/*"],
-      "@oml/modules/*": ["../modules/src/*"]
+      "@oml/modules/*": ["../modules/src/*"],
+      "@oml/bridge": ["../bridge/src/index.js"],
+      "@oml/bridge/*": ["../bridge/src/*"]
     }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests"],
   "references": [
     { "path": "../core" },
-    { "path": "../modules" }
+    { "path": "../modules" },
+    { "path": "../bridge" }
   ]
 }

@@ -22,6 +22,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@oml/bridge": "^0.2.0",
     "@oml/core": "^0.2.0",
     "@oml/modules": "^0.2.0",
     "commander": "^12.0.0",
