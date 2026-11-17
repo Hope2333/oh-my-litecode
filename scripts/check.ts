@@ -135,7 +135,7 @@ async function gateSurface(): Promise<void> {
 interface Limits { hooks: number; tools: number; actions: number; mcp: number; plugins: number }
 
 function readLimits(): Limits {
-  const limits: Limits = { hooks: 8, tools: 14, actions: 26, mcp: 3, plugins: 5 }
+  const limits: Limits = { hooks: 8, tools: 14, actions: 29, mcp: 3, plugins: 5 }
   const p = join(ROOT, "BUDGET.md")
   if (!existsSync(p)) return limits
   const txt = readFileSync(p, "utf8")

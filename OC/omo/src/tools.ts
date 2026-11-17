@@ -1,5 +1,5 @@
 /**
- * OML 的 4 个工具网关 + 1 个兼容位。
+ * OML 的 5 个工具网关 + 1 个兼容位。
  *
  * 折叠原则（用户要求）：按使用率与必要性分组，**网关内部用 action 分派**，
  * 而不是每个能力占一个独立 schema。9 个独立工具的 schema 常驻 system prompt；
@@ -9,6 +9,7 @@
  *  - omo_knowledge skill / skill_read / web —— 技能与外部检索
  *  - omo_admin     model / goal / status / checkpoint / handoff / mcp / memory / compress…
  *  - omo_mcp       tools / call / sync —— 按需拉起 MCP 服务器（宿主侧一律禁用）
+ *  - omo_channel   post / read / list —— 团队频道，横向通信与自推进
  *  - skill         旧 OMO 兼容位（config.compat.skillTool）
  */
 import { tool, type ToolContext } from "@opencode-ai/plugin"
@@ -83,6 +84,13 @@ import {
   type TaskRecord,
   type TaskStore,
 } from "@oml/core"
+import {
+  loadBoard,
+  list as listChannels,
+  post as postMessage,
+  read as readMessages,
+  saveBoard,
+} from "@oml/core/channel/board.ts"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { dirname } from "node:path"
 import type { TaskClient } from "./client.ts"
@@ -169,15 +177,23 @@ export const ADMIN_ACTIONS = [
 /** MCP 网关：宿主侧全部禁用，这里按需拉起子进程。 */
 export const MCP_ACTIONS = ["tools", "call", "sync"] as const
 
+/** 团队频道网关：post 广播发现/认领，read 读队友进度，list 列频道。 */
+export const CHANNEL_ACTIONS = ["post", "read", "list"] as const
+
 export const ACTION_SLOTS = {
   omo_task: TASK_ACTIONS.length,
   omo_knowledge: KNOWLEDGE_ACTIONS.length,
   omo_admin: ADMIN_ACTIONS.length,
   omo_mcp: MCP_ACTIONS.length,
+  omo_channel: CHANNEL_ACTIONS.length,
 } as const
 
 export const ACTION_TOTAL =
-  ACTION_SLOTS.omo_task + ACTION_SLOTS.omo_knowledge + ACTION_SLOTS.omo_admin + ACTION_SLOTS.omo_mcp
+  ACTION_SLOTS.omo_task +
+  ACTION_SLOTS.omo_knowledge +
+  ACTION_SLOTS.omo_admin +
+  ACTION_SLOTS.omo_mcp +
+  ACTION_SLOTS.omo_channel
 
 /**
  * 同步 MCP 目录（admin 与 omo_mcp 共用一份策略）。
@@ -261,6 +277,23 @@ function affiliationOf(store: TaskStore, task: TaskRecord): string {
   return ids.join("←")
 }
 
+/**
+ * 沿 parentId 上溯找最近的 team 祖先，把它的 id 当作频道。
+ * nested 子代理（run 分支递归派发）据此继承父团队频道；找不到返回 undefined → 不注入。
+ */
+function inheritedChannel(store: TaskStore, task: TaskRecord): string | undefined {
+  let cur = task
+  const seen = new Set<string>([task.id])
+  while (cur.parentId !== null && !seen.has(cur.parentId)) {
+    seen.add(cur.parentId)
+    const parent = store.tasks[cur.parentId]
+    if (parent === undefined) break
+    if (parent.kind === "team") return parent.id
+    cur = parent
+  }
+  return undefined
+}
+
 /** 会话标题：隶属链永远前置并保留（侧重），自定义名只替换描述段。
  *  形如 `omo t1←t5 · 出海报`。缺省也总是有名字，不会让会话裸奔进列表。 */
 function sessionTitleOf(store: TaskStore, task: TaskRecord, custom?: string): string {
@@ -269,16 +302,27 @@ function sessionTitleOf(store: TaskStore, task: TaskRecord, custom?: string): st
   return `omo ${aff} · ${label}`
 }
 
-/** 让每个子会话知道自己的任务 id、隶属链与会话标题，再派任务时能带上 parentId（深度才真的可约束）。 */
-function promptWithTaskContext(task: TaskRecord, prompt: string, aff: string, title: string): string {
-  return `[oml-task ${task.id} depth=${task.depth}]\n本会话标题：${title}\n隶属链：${aff}\n若你需要再派子任务，请在 omo_task 参数里带 parentId: "${task.id}" 与 title（标题会自动带上完整隶属链）。\n\n${prompt}`
+/** 让每个子会话知道自己的任务 id、隶属链与会话标题，再派任务时能带上 parentId（深度才真的可约束）。
+ *  传 channel 时追加一段通信指令：团队子代理据此横向读进度、广播发现/认领、自推进。 */
+function promptWithTaskContext(
+  task: TaskRecord,
+  prompt: string,
+  aff: string,
+  title: string,
+  channel?: string,
+): string {
+  const channelLine =
+    channel === undefined || channel === ""
+      ? ""
+      : `\n你在团队频道 ${channel}。先 omo_channel read 看队友进度；用 omo_channel post 广播你的发现与认领（from=你的 role，to=* 或指定 role）；主动推进，不事事等主代理。`
+  return `[oml-task ${task.id} depth=${task.depth}]\n本会话标题：${title}\n隶属链：${aff}\n若你需要再派子任务，请在 omo_task 参数里带 parentId: "${task.id}" 与 title（标题会自动带上完整隶属链）。${channelLine}\n\n${prompt}`
 }
 
 function runChild(
   state: HostState,
   task: TaskRecord,
   prompt: string,
-  opts?: { resumeSessionId?: string; parentSessionId?: string; title?: string },
+  opts?: { resumeSessionId?: string; parentSessionId?: string; title?: string; channel?: string },
 ): Promise<{ ok: boolean; text: string; status?: StatusLineInput }> {
   return (async () => {
     const aff = affiliationOf(state.store, task)
@@ -336,7 +380,7 @@ function runChild(
         ...(model === null ? {} : { model }),
         // 只给首选模型带 variant：回退模型未必有同一档位，强塞会变成「非模型错误」而不重试
         ...(pick.variant === undefined || model === null || candidate !== pick.model ? {} : { variant: pick.variant }),
-        text: promptWithTaskContext(task, prompt, aff, title),
+        text: promptWithTaskContext(task, prompt, aff, title, opts?.channel),
       })
       tried.push(`${candidate ?? "<宿主默认>"}${attempt.error === undefined ? "(✓)" : "(✗)"}`)
       res = attempt
@@ -723,6 +767,7 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
           const out = await runChild(state, child.task, briefWithPolicy, {
             parentSessionId: ctx.sessionID,
             title: `${m.role} · ${child.task.description.slice(0, 24)}`,
+            channel: teamId,
           })
           const memberStatus =
             out.status === undefined
@@ -778,9 +823,11 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
         })
         if (!created.ok) return created.reason
         const task = created.task
+        const channel = inheritedChannel(state.store, task)
         void runChild(state, task, args.task ?? "", {
           parentSessionId: ctx.sessionID,
           ...(args.title === undefined ? {} : { title: args.title }),
+          ...(channel === undefined ? {} : { channel }),
         })
         return `已派发 ${task.id}（后台，标题 ${sessionTitleOf(state.store, task, args.title)}）。用 action=status taskId=${task.id} 查看。`
       }
@@ -792,9 +839,11 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
         ...(args.parentId === undefined ? {} : { parentId: args.parentId }),
       })
       if (!created.ok) return created.reason
+      const channel = inheritedChannel(state.store, created.task)
       const out = await runChild(state, created.task, args.task ?? "", {
         parentSessionId: ctx.sessionID,
         ...(args.title === undefined ? {} : { title: args.title }),
+        ...(channel === undefined ? {} : { channel }),
       })
       const line = out.status === undefined ? "" : `\n\n${formatStatusLine(out.status)}`
       return (out.ok ? out.text : `失败：${out.text}`) + line
@@ -1146,11 +1195,52 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
     },
   })
 
+  const omoChannel = tool({
+    description:
+      "团队频道网关。post 广播发现/认领（from=你的 role，to=* 或指定 role）；read 按频道读队友进度（since=ts 游标增量读）；list 列所有频道。团队/多层子代理用它横向通信、自推进。",
+    args: {
+      action: tool.schema.enum(CHANNEL_ACTIONS),
+      channel: tool.schema.string().describe("频道 id；团队用 teamId"),
+      from: tool.schema.string().optional().describe("发送者 role（post 必填）"),
+      to: tool.schema.string().optional().describe("接收者 role；不传或 '*' 为广播"),
+      body: tool.schema.string().optional().describe("消息正文（post 必填）"),
+      since: tool.schema.number().optional().describe("read 的 ts 游标：只返回 ts > since 的消息"),
+    },
+    async execute(args, ctx: ToolContext) {
+      bump(`channel.${args.action}`)
+      if (args.action === "list") {
+        const channels = listChannels(await loadBoard())
+        return channels.length === 0 ? "（暂无频道）" : channels.join("\n")
+      }
+      const channel = (args.channel ?? "").trim()
+      if (channel === "") return "需要 channel=<频道 id>"
+      const board = await loadBoard()
+      if (args.action === "post") {
+        const from = (args.from ?? "").trim()
+        if (from === "") return "post 需要 from=<你的 role>"
+        const body = args.body ?? ""
+        if (body.trim() === "") return "post 需要 body=<消息正文>"
+        const toRaw = (args.to ?? "").trim()
+        const to = toRaw === "" ? "*" : toRaw
+        const r = postMessage(board, { channel, from, to, body, kind: "msg" })
+        await saveBoard(r.board)
+        return `已发到 ${channel}：${r.message.id} ${from}→${to} ${body.slice(0, 80)}`
+      }
+      const to = args.to === undefined || args.to.trim() === "" ? undefined : args.to.trim()
+      const msgs = readMessages(board, channel, args.since, to)
+      if (msgs.length === 0) return `频道 ${channel} 暂无消息`
+      return msgs
+        .map((m) => `[${m.ts}] ${m.from}→${m.to} [${m.kind}] ${m.body}`)
+        .join("\n")
+    },
+  })
+
   return {
     omo_task: omoTask,
     omo_knowledge: omoKnowledge,
     omo_admin: omoAdmin,
     omo_mcp: omoMcp,
+    omo_channel: omoChannel,
   }
 }
 

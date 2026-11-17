@@ -41,7 +41,7 @@ describe("createOc2Host", () => {
     expect(() => toV1Input({ directory: "/tmp" })).toThrow(/client/)
   })
 
-  test("装配出的钩子与 OC 前线同构，且带 5 个工具", async () => {
+  test("装配出的钩子与 OC 前线同构，且带 6 个工具", async () => {
     const { dir, stateDir, skillRoots } = await scaffold()
     const hooks = await createOc2Host({ directory: dir, client: {} }, { skillRoots, stateDir, config: {} })
 
@@ -49,7 +49,7 @@ describe("createOc2Host", () => {
       ["chat.message", "config", "event", "experimental.chat.system.transform", "experimental.session.compacting", "permission.ask", "tool"].sort(),
     )
     expect(Object.keys(hooks["tool"] ?? {}).sort()).toEqual(
-      ["omo_admin", "omo_knowledge", "omo_mcp", "omo_task", "skill"].sort(),
+      ["omo_admin", "omo_channel", "omo_knowledge", "omo_mcp", "omo_task", "skill"].sort(),
     )
   })
 

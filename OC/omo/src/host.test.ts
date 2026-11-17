@@ -205,13 +205,13 @@ describe("createHostCore", () => {
     expect(out4.system[0]).not.toContain("## 视觉")
   })
 
-  test("注册 4 个网关 + 1 个兼容位，旧 OMO 的工具名一个都没有", async () => {
+  test("注册 5 个网关 + 1 个兼容位，旧 OMO 的工具名一个都没有", async () => {
     const hooks = await createHostCore(
       { directory: dir, client: fakeClient() },
       { skillRoots: [skillsRoot], stateDir, config: {} },
     )
     const names = Object.keys(hooks.tool ?? {}).sort()
-    expect(names).toEqual(["omo_admin", "omo_knowledge", "omo_mcp", "omo_task", "skill"])
+    expect(names).toEqual(["omo_admin", "omo_channel", "omo_knowledge", "omo_mcp", "omo_task", "skill"])
   })
 
   test("omo_admin action=status 报告上限 8192 且 totalTokens 为正", async () => {
@@ -604,7 +604,7 @@ describe("配置开关", () => {
       { config: { ...base, compat: { taskAlias: true } }, skillRoots: [skillsRoot], stateDir },
     )
     const tools = hooks.tool ?? {}
-    expect(Object.keys(tools).length).toBe(6)
+    expect(Object.keys(tools).length).toBe(7)
     expect(tools["task"]).toBe(tools["omo_task"])
   })
 

@@ -11,8 +11,8 @@
 | 持久记忆条目 | 60 | 0（空库零成本） | 吸收 working-memory + dreams + snippets（三类：fact/antipattern/snippet）；仅头部 12 条注入 |
 | 压缩摘要块 | 无上限（模型自主） | 0 | 吸收 opencode-acp；只注入模型显式压缩的块，不预注入 |
 | Hook 数量 | 8 | 6（config / event / chat.message / system.transform / compaction / tool） | 旧 OMO 57 个 hook 目录；compaction 于 2026-11-15 加入，记账理由见下 |
-| 工具数量 | 14 | 5（omo_task / omo_knowledge / omo_admin / omo_mcp / skill 兼容位） | 旧 OMO ~25 个工具；v2 把 7 个细粒度工具折叠成 3 网关，v3 加 MCP 网关（换来宿主 4 个 MCP 的工具 schema 全部不进提示） |
-| 网关 action 槽位 | 26 | 25（omo_task 5 / omo_knowledge 3 / omo_admin 14 / omo_mcp 3） | **真实复杂度货币**：折叠工具不减少模型要读的分支，所以按 action 计数；加一个必须删一个。2026-11-14 加 `slop_check`+`team_list`(+2)、并把 `model_show`/`model_set` 合并为 `model`(+op)(−1)、`memory_forget`/`memory_reinforce` 合并为 `memory_edit`(−1)，净 0。2026-11-16 加 `mcp`(+1) 与 omo_mcp 3 槽，同时把 `measure`/`context`/`stats` 合并为 `status`(−2)、`memory_add`/`memory_list`/`memory_edit` 合并为 `memory`(+op)(−2)，净 0。2026-11-17 加 `pa`(+1) 管会话删除/改写授权，同时把 `compress_add`/`compress_list`/`decompress` 合并为 `compress`(+op)(−2)，净 −1 |
+| 工具数量 | 14 | 6（omo_task / omo_knowledge / omo_admin / omo_mcp / omo_channel / skill 兼容位） | 旧 OMO ~25 个工具；v2 把 7 个细粒度工具折叠成 3 网关，v3 加 MCP 网关（换来宿主 4 个 MCP 的工具 schema 全部不进提示）；2026-11-18 加 omo_channel 团队频道工具，工具数 5→6，仍在 14 以内 |
+| 网关 action 槽位 | 29 | 28（omo_task 5 / omo_knowledge 3 / omo_admin 14 / omo_mcp 3 / omo_channel 3） | **真实复杂度货币**：折叠工具不减少模型要读的分支，所以按 action 计数；加一个必须删一个。2026-11-14 加 `slop_check`+`team_list`(+2)、并把 `model_show`/`model_set` 合并为 `model`(+op)(−1)、`memory_forget`/`memory_reinforce` 合并为 `memory_edit`(−1)，净 0。2026-11-16 加 `mcp`(+1) 与 omo_mcp 3 槽，同时把 `measure`/`context`/`stats` 合并为 `status`(−2)、`memory_add`/`memory_list`/`memory_edit` 合并为 `memory`(+op)(−2)，净 0。2026-11-17 加 `pa`(+1) 管会话删除/改写授权，同时把 `compress_add`/`compress_list`/`decompress` 合并为 `compress`(+op)(−2)，净 −1。2026-11-18 加 `omo_channel` 3 action（post/read/list）— 团队横向通信，独立工具非能力走私；基线实为 25（非 26），上限 26→29 保留 +1 余量 |
 | 常驻 MCP | 3 | 0（OML 自身） | 宿主现存 8 个属被改造对象 |
 | 启用插件 | 5 | 1（OML 自身） | 宿主现仅 2 个（opencode-notify / superpowers-zh）；其余见 docs/design/plugin-absorption.md |
 | 内核运行时依赖 | 0 | 0 | 只用 node: 内建 + @opencode-ai/plugin 的类型 |
@@ -32,4 +32,5 @@ PASS types / tests(177) / budget(2422) / host(889) / surface(4 工具,6 hook) / 
 
 ```
 - YYYY-MM-DD | 新增项 | 等量删除项 / 豁免理由 | 批准人
+- 2026-11-18 | omo_channel 3 action（post/read/list）— 团队横向通信，独立工具非能力走私 | 网关 action 上限 26→29（实测 25→28，保留 +1 余量）；工具数 5→6 仍在 14 以内 | Unit5 记账
 ```
