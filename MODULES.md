@@ -126,3 +126,14 @@
 | 非原子写状态文件 | `packages/core/src/skills/usage.ts` `saveUsage` | 裸 `writeFile` 在并发/中断下留下尾部 NUL 与截断，实际损坏过本机 `skill-usage.json`（末尾 `},` 后缺 `}`） | codebase 其余状态写入（mcp/catalog、memory/store、tasks/store 等）全部 tmp→rename 原子提交；此处是唯一例外，必须对齐 | `usage.test.ts`「原子写：无残留 tmp，连续两次写后内容完整无 NUL」 |
 
 配套：`demoted` 判据已统一为单一来源 `isDemoted`（`usage.ts` 与 `index-gen.ts` 共用），改降级逻辑只改一处。
+
+## 会话权限与所有权（2026-11-17，PA 系统）
+
+用户铁律：**只可无 PA 删除自己创建的会话**；删/改写他人会话须先取得人类 PA；不明归属 = 可能是人类建的。
+
+- `packages/core/src/permission/ownership.ts` — 所有权账本（`session-owners.json`，原子写）。OML 自建会话登记 `oml`；未登记一律 `unknown`（可能是人类在 TUI 建的）。`reconcileWithHost` 把宿主 `session.list` 与账本对账，补登 unknown 供面板提示。账本落盘跨进程重启仍在。
+- `packages/core/src/permission/pa.ts` — PA 待批队列（`pending-pa.json`，原子写）。状态机 `pending→approved/denied/expired`（24h TTL）。`isHighValue`（Read 100M tok+ 或 Turn 16+）；`needsJustification` = 高价值且非 oml 归属 → 删前必须带非空工作说明（防误删重要总会话——实测 root 会话 cache.read 达 1.1B）。
+- `OC/omo/src/host.ts` — ① config 钩子注入 `permission.external_directory=allow / webfetch=allow`（学原版 OMO `dist/index.js:163166`，这是 /dev 类访问不被 PA 拦的唯一可靠路径，`permissions:false` 时关闭）；② system.transform 常驻一行 `## 会话所有权` 铁律 + 有 pending 时列 `## 待批权限`（含工作说明、高价值警告）。两者都在预算外追加区，不计入 3247 tok。
+- `OC/omo/src/tools.ts` — `omo_admin action=pa`（op=request/list/approve/deny/execute）。`execute` 是 `client.session.delete` 的**唯一**调用入口，内置 `isAuthorized` 复查 + 高价值无说明撤回批准（防未批先删/缺说明误删）。`compress_add/list/decompress` 合并为 `compress(op=add/list/decompress)`，省 2 action 槽给 pa（BUDGET.md 已记账，ACTION_TOTAL 25）。
+  消灭的矛盾：宿主 SDK 的 Session 无「创建者」字段 → OML 自建账本；v1 `permission.ask` 钩子输出塞不进工作说明 → 自建 PA 队列；配置层 external_directory 校验不被插件钩子拦截 → config 钩子注入。
+- 守卫测试：`permission/{ownership,pa}.test.ts`（19）；`host.test.ts`（配置层权限注入 / PA 提示 / 删除硬边界 3 项）。

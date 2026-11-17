@@ -54,6 +54,12 @@ import {
   recordHit,
   recordMisses,
   eigenfluxHint,
+  loadOwnership,
+  saveOwnership,
+  loadPa,
+  savePa,
+  pendingPa,
+  registerOmlSession,
   saveTasks,
   saveUsage,
   scanSkills,
@@ -242,6 +248,10 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
   let compress: CompressStore = await loadCompress(compressFile)
   let overrides: ModelOverrides = await loadOverrides(overridesFile)
   let mcpCatalog: McpCatalog = await loadMcpCatalog(mcpFile)
+  const ownershipFile = dir ? join(dir, "session-owners.json") : undefined
+  const paFile = dir ? join(dir, "pending-pa.json") : undefined
+  let ownershipLedger: import("@oml/core").OwnershipLedger = await loadOwnership(ownershipFile)
+  let paQueue: import("@oml/core").PaQueue = await loadPa(paFile)
 
   const sessionImages = new Set<string>()
 
@@ -255,6 +265,22 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
     sessionText: new Map(),
     sessionImages,
     sessionTitles: new Map(),
+    ownership: ownershipLedger,
+    paQueue,
+    saveOwnership(next) {
+      ownershipLedger = next
+      state.ownership = next
+      void saveOwnership(next, ownershipFile).catch((err: unknown) => {
+        console.warn(`[omo] 保存所有权账本失败: ${err instanceof Error ? err.message : String(err)}`)
+      })
+    },
+    savePa(next) {
+      paQueue = next
+      state.paQueue = next
+      void savePa(next, paFile).catch((err: unknown) => {
+        console.warn(`[omo] 保存 PA 队列失败: ${err instanceof Error ? err.message : String(err)}`)
+      })
+    },
     saveUsage(next) {
       usage = next
       state.usage = next
@@ -465,6 +491,20 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
           agents[id] = { ...entry, tools: { ...(entry.tools ?? {}), skill: false } }
         }
       }
+      // 配置层权限绕过（学原版 OMO：dist/index.js:163166）——在权限弹窗之前生效，
+      // 这是 /dev、/proc 等 external_directory 访问不被 PA 拦截的唯一可靠路径。
+      // 插件 permission.ask 钩子拦不到配置层校验，故必须走 config.permission。
+      // permissions:false 时完全不注入，回到宿主默认每次询问。
+      if (config.permissions !== false) {
+        const cfgRecord = cfg as unknown as Record<string, unknown>
+        const userPerm = (cfgRecord["permission"] ?? {}) as Record<string, unknown>
+        cfgRecord["permission"] = {
+          webfetch: "allow",
+          external_directory: "allow",
+          ...userPerm, // 用户显式配置优先
+        }
+      }
+
       cfg.agent = agents as typeof cfg.agent
       // 启动默认代理：Sisyphus（1.19+ 支持 default_agent；必须是 primary 才生效，否则宿主回落到 build）。
       // 装的 SDK 类型是 1.14（无此字段），故经 Record 视图赋值；运行时 1.19.3 已确认支持。
@@ -602,6 +642,16 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
       // 只读检索可主动；写操作内嵌"先取得用户授权"红线；心跳会话内不主动跑。
       const efHint = eigenfluxHint(taskText, { enabled: config.eigenflux?.proactive !== false })
 
+      // PA 待批提示：让人类在此会话看到待裁决的授权请求（含工作说明+高价值警告）。
+      // 预算外追加区，与 efHint 同类。所有权铁律常驻一行：删/改写他建会话前必查归属。
+      const pending = pendingPa(state.paQueue)
+      const ownershipRule = `\n## 会话所有权\n- 只可无 PA 删除自己创建的会话；删除/改写他人会话须先 omo_admin action=pa op=request 取得人类授权。\n- 查不明归属会话（可能是人类建的）：omo_admin action=pa op=list reconcile=true`
+      const paHint = ownershipRule + (pending.length === 0
+        ? ""
+        : `\n## 待批权限（PA）\n${pending.map((r) =>
+            `- [${r.id}] ${r.operation} ${r.sessionTitle ?? r.sessionId}（${r.owner}${r.highValue ? "，⚠高价值：清除前必须确认其工作说明" : ""}）\n  说明：${r.reason || "(无)"}\n  裁决：omo_admin action=pa op=approve/deny target=${r.id}`,
+          ).join("\n")}`)
+
       // 主动控制：占用过八成就不再依赖模型自觉，直接把状态落盘成检查点。
       // 每 10 分钟最多一次，避免每轮 flush 写盘。
       const pct = Math.round((built.report.totalTokens / Math.max(1, built.report.budget.limit)) * 100)
@@ -616,7 +666,7 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
         }
       }
 
-      output.system.push(`${OMO_MARKER}\n${built.prompt}${blocks === "" ? "" : `\n\n${blocks}`}${rescue}${visionHint}${identityHint}${efHint}`)
+      output.system.push(`${OMO_MARKER}\n${built.prompt}${blocks === "" ? "" : `\n\n${blocks}`}${rescue}${visionHint}${identityHint}${efHint}${paHint}`)
 
       void gate({ sections: built.sections }, { limit, logPath: logFile }).catch(
         (err: unknown) => {

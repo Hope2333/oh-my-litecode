@@ -12,7 +12,7 @@
 | 压缩摘要块 | 无上限（模型自主） | 0 | 吸收 opencode-acp；只注入模型显式压缩的块，不预注入 |
 | Hook 数量 | 8 | 6（config / event / chat.message / system.transform / compaction / tool） | 旧 OMO 57 个 hook 目录；compaction 于 2026-11-15 加入，记账理由见下 |
 | 工具数量 | 14 | 5（omo_task / omo_knowledge / omo_admin / omo_mcp / skill 兼容位） | 旧 OMO ~25 个工具；v2 把 7 个细粒度工具折叠成 3 网关，v3 加 MCP 网关（换来宿主 4 个 MCP 的工具 schema 全部不进提示） |
-| 网关 action 槽位 | 26 | 26（omo_task 5 / omo_knowledge 3 / omo_admin 15 / omo_mcp 3） | **真实复杂度货币**：折叠工具不减少模型要读的分支，所以按 action 计数；加一个必须删一个。2026-11-14 加 `slop_check`+`team_list`(+2)、并把 `model_show`/`model_set` 合并为 `model`(+op)(−1)、`memory_forget`/`memory_reinforce` 合并为 `memory_edit`(−1)，净 0。2026-11-16 加 `mcp`(+1) 与 omo_mcp 3 槽，同时把 `measure`/`context`/`stats` 合并为 `status`(−2)、`memory_add`/`memory_list`/`memory_edit` 合并为 `memory`(+op)(−2)，净 0 |
+| 网关 action 槽位 | 26 | 25（omo_task 5 / omo_knowledge 3 / omo_admin 14 / omo_mcp 3） | **真实复杂度货币**：折叠工具不减少模型要读的分支，所以按 action 计数；加一个必须删一个。2026-11-14 加 `slop_check`+`team_list`(+2)、并把 `model_show`/`model_set` 合并为 `model`(+op)(−1)、`memory_forget`/`memory_reinforce` 合并为 `memory_edit`(−1)，净 0。2026-11-16 加 `mcp`(+1) 与 omo_mcp 3 槽，同时把 `measure`/`context`/`stats` 合并为 `status`(−2)、`memory_add`/`memory_list`/`memory_edit` 合并为 `memory`(+op)(−2)，净 0。2026-11-17 加 `pa`(+1) 管会话删除/改写授权，同时把 `compress_add`/`compress_list`/`decompress` 合并为 `compress`(+op)(−2)，净 −1 |
 | 常驻 MCP | 3 | 0（OML 自身） | 宿主现存 8 个属被改造对象 |
 | 启用插件 | 5 | 1（OML 自身） | 宿主现仅 2 个（opencode-notify / superpowers-zh）；其余见 docs/design/plugin-absorption.md |
 | 内核运行时依赖 | 0 | 0 | 只用 node: 内建 + @opencode-ai/plugin 的类型 |

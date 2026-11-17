@@ -64,10 +64,18 @@ function stubState(): HostState {
       async lastAssistantText() {
         return ""
       },
+      async listSessions() {
+        return []
+      },
+      async deleteSession() {},
     },
     sessionImages: new Set<string>(),
     sessionText: new Map(),
     sessionTitles: new Map<string, string>(),
+    ownership: {},
+    paQueue: {},
+    saveOwnership() {},
+    savePa() {},
     overrides: { version: 1, agents: {}, categories: {} },
     stats: { startedAt: Date.now(), calls: {} },
     saveUsage() {},

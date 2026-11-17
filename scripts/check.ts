@@ -95,6 +95,8 @@ async function measureSurface(): Promise<Surface> {
       async promptSession() { return { text: "" } },
       async abortSession() {},
       async lastAssistantText() { return "" },
+      async listSessions() { return [] },
+      async deleteSession() {},
     }
     const hooks = await createHostCore({ directory: dir, client }, { skillRoots: [], stateDir: join(dir, "state") })
     const { ACTION_TOTAL } = await import("../OC/omo/src/tools.ts")

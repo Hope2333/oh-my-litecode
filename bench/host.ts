@@ -23,6 +23,10 @@ const client: TaskClient = {
   async lastAssistantText() {
     return ""
   },
+  async listSessions() {
+    return []
+  },
+  async deleteSession() {},
 }
 
 const dir = await mkdtemp(join(tmpdir(), "omo-bench-"))

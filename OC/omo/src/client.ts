@@ -31,6 +31,17 @@ export type TaskClient = {
   }): Promise<PromptResult>
   abortSession(input: { sessionId: string }): Promise<void>
   lastAssistantText(input: { sessionId: string }): Promise<string>
+  /** 列出全部会话（跨目录），供所有权对账与 PA 面板。 */
+  listSessions(): Promise<Array<{
+    id: string
+    title?: string
+    directory?: string
+    parentID?: string | null
+    tokens?: { cache?: { read?: number } }
+    turns?: number
+  }>>
+  /** 删除会话及其数据。调用方必须先通过 PA 授权裁决。 */
+  deleteSession(input: { sessionId: string; directory?: string }): Promise<void>
 }
 
 function textOf(parts: ReadonlyArray<{ type: string }> | undefined): string {
@@ -110,6 +121,36 @@ export function sdkTaskClient(client: PluginInput["client"]): TaskClient {
         if (t !== "") return t
       }
       return ""
+    },
+
+    async listSessions() {
+      const res = await client.session.list({})
+      const list = res.data
+      if (!Array.isArray(list)) return []
+      return list.map((s) => {
+        const info = s as unknown as {
+          id: string
+          title?: string
+          directory?: string
+          parentID?: string | null
+          tokens?: { cache?: { read?: number } }
+        }
+        return {
+          id: info.id,
+          ...(typeof info.title === "string" ? { title: info.title } : {}),
+          ...(typeof info.directory === "string" ? { directory: info.directory } : {}),
+          ...(info.parentID == null ? {} : { parentID: info.parentID }),
+          ...(info.tokens?.cache?.read === undefined ? {} : { tokens: { cache: { read: info.tokens.cache.read } } }),
+        }
+      })
+    },
+
+    async deleteSession({ sessionId, directory }) {
+      const res = await client.session.delete({
+        path: { id: sessionId },
+        ...(directory === undefined ? {} : { query: { directory } }),
+      })
+      if (res.error !== undefined) throw new Error(`session.delete 失败: ${summarize(res.error)}`)
     },
   }
 }

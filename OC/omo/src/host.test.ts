@@ -56,6 +56,10 @@ function fakeClient(opts: { hang?: boolean } = {}): FakeClient {
     async lastAssistantText() {
       return ""
     },
+    async listSessions() {
+      return []
+    },
+    async deleteSession() {},
   }
 }
 
@@ -220,6 +224,55 @@ describe("createHostCore", () => {
     // status 现在是人读+JSON 混合：预算行在前，上下文段是 JSON 片段
     expect(text).toContain("8192 tok")
     expect(text).toMatch(/## 注入预算\n- \d+\/8192 tok（pass|truncated|fail）/)
+  })
+
+  test("PA 删除硬边界：未批准不可删；批准后可执行；高价值未明归属无说明被拒", async () => {
+    const deleted: string[] = []
+    const client = {
+      ...fakeClient(),
+      async listSessions() {
+        return [{ id: "ses_target", title: "别人的会话", directory: dir, tokens: { cache: { read: 200_000_000 } } }]
+      },
+      async deleteSession({ sessionId }: { sessionId: string }) {
+        deleted.push(sessionId)
+      },
+    }
+    const hooks = await createHostCore({ directory: dir, client }, { skillRoots: [skillsRoot], stateDir })
+    const admin = hooks.tool!["omo_admin"]!
+
+    // 高价值未明归属、无说明 → 拒绝提交
+    const txt = (r: unknown): string => typeof r === "string" ? r : (r as { output: string }).output
+    const bad = await admin.execute(
+      { action: "pa", op: "request", sessionId: "ses_target", operation: "delete", reason: "" },
+      toolCtx(),
+    )
+    expect(txt(bad)).toContain("必须说明")
+
+    // 带说明提交 → 成功
+    const ok = await admin.execute(
+      { action: "pa", op: "request", sessionId: "ses_target", operation: "delete", reason: "已迁移的旧会话" },
+      toolCtx(),
+    )
+    expect(txt(ok)).toContain("已提交 PA")
+    const id = /\[(pa_[^\]]+)\]/.exec(txt(ok))?.[1] ?? ""
+
+    // 未批准就 execute → 拒绝，且没真删
+    const before = await admin.execute(
+      { action: "pa", op: "execute", sessionId: "ses_target", operation: "delete" },
+      toolCtx(),
+    )
+    expect(txt(before)).toContain("未获 PA 批准")
+    expect(deleted).toEqual([])
+
+    // 批准 → execute 成功
+    await admin.execute({ action: "pa", op: "approve", target: id }, toolCtx())
+    const done = await admin.execute(
+      { action: "pa", op: "execute", sessionId: "ses_target", operation: "delete" },
+      toolCtx(),
+    )
+    expect(txt(done)).toContain("已删除")
+    expect(deleted).toEqual(["ses_target"])
+    expect(id).not.toBe("")
   })
 
   test("omo_task run 拒绝过短描述，也拒绝未知类别", async () => {
@@ -611,6 +664,54 @@ describe("配置开关", () => {
     expect(agents["sisyphus-junior"]?.color).toBe("#20B2AA")
     const ids = Object.keys(agents)
     expect(ids.slice(0, 3)).toEqual(["sisyphus", "prometheus", "atlas"])
+  })
+
+  test("config 钩子注入配置层权限（external_directory/webfetch allow 修 /dev PA），用户配置优先", async () => {
+    const hooks = await createHostCore({ directory: dir, client: fakeClient() }, { skillRoots: [skillsRoot], stateDir })
+    const cfg: Record<string, unknown> = {}
+    await hooks.config!(cfg as never)
+    const perm = cfg["permission"] as Record<string, string>
+    expect(perm["external_directory"]).toBe("allow")
+    expect(perm["webfetch"]).toBe("allow")
+
+    // 用户显式配置优先：不能被我们的默认值覆盖
+    const cfg2: Record<string, unknown> = { permission: { external_directory: "ask" } }
+    await hooks.config!(cfg2 as never)
+    expect((cfg2["permission"] as Record<string, string>)["external_directory"]).toBe("ask")
+  })
+
+  test("PA 待批请求注入系统提示（含工作说明 + 高价值警告）", async () => {
+    const client = {
+      ...fakeClient(),
+      async listSessions() {
+        return [{ id: "ses_big", title: "重要总会话", directory: dir, tokens: { cache: { read: 1_100_000_000 } } }]
+      },
+    }
+    const hooks = await createHostCore({ directory: dir, client }, { skillRoots: [skillsRoot], stateDir })
+    // 提交一个高价值未明归属会话的删除请求（带说明）
+    const submitted = await hooks.tool!["omo_admin"]!.execute(
+      { action: "pa", op: "request", sessionId: "ses_big", operation: "delete", reason: "这是旧的测试总会话，已迁移" },
+      toolCtx(),
+    )
+    expect(submitted).toContain("已提交 PA")
+    // transform 注入待批提示
+    const output = { system: [] as string[] }
+    await hooks["experimental.chat.system.transform"]!({ sessionID: "ses_main" } as never, output as never)
+    const sys = output.system.join("\n")
+    expect(sys).toContain("## 待批权限")
+    expect(sys).toContain("重要总会话")
+    expect(sys).toContain("这是旧的测试总会话")
+    expect(sys).toContain("高价值")
+  })
+
+  test("permissions=false 时不注入配置层权限", async () => {
+    const hooks = await createHostCore(
+      { directory: dir, client: fakeClient() },
+      { skillRoots: [skillsRoot], stateDir, config: { permissions: false } },
+    )
+    const cfg: Record<string, unknown> = {}
+    await hooks.config!(cfg as never)
+    expect(cfg["permission"]).toBeUndefined()
   })
 
   test("disabled_skills 从索引里剔除", async () => {

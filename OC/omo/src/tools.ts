@@ -22,6 +22,10 @@ import type {
   MemoryStore,
   ModelOverrides,
   ModelTarget,
+  OwnershipLedger,
+  PaQueue,
+  PaRequest,
+  SessionValue,
 } from "@oml/core"
 import {
   AGENT_IDS,
@@ -60,6 +64,14 @@ import {
   summarizeSlop,
   selectSkills,
   triggerOf,
+  classifyOwner,
+  isOmlOwned,
+  registerOmlSession,
+  reconcileWithHost,
+  submitPa,
+  resolvePa,
+  expirePa,
+  isAuthorized,
   setOverride,
   transition,
   CATEGORY_IDS,
@@ -98,6 +110,12 @@ export type HostState = {
   sessionImages: Set<string>
   /** sessionID → 会话标题（含隶属链），供子会话在自己的系统提示里看到「我是谁」。 */
   sessionTitles: Map<string, string>
+  /** 会话所有权账本：裁决谁能删/改写会话（unknown = 可能是人类建的，需 PA）。 */
+  ownership: OwnershipLedger
+  saveOwnership(next: OwnershipLedger): void
+  /** PA 待批队列：带工作说明的授权请求，人类在会话里裁决。 */
+  paQueue: PaQueue
+  savePa(next: PaQueue): void
   saveUsage(usage: SkillUsageMap): void
   saveTasks(store: TaskStore): void
   saveOverrides(next: ModelOverrides): void
@@ -144,9 +162,8 @@ export const ADMIN_ACTIONS = [
   "mcp",
   "memory",
   "dreams_distill",
-  "compress_add",
-  "compress_list",
-  "decompress",
+  "compress",
+  "pa",
 ] as const
 
 /** MCP 网关：宿主侧全部禁用，这里按需拉起子进程。 */
@@ -276,6 +293,16 @@ function runChild(
         : { id: opts.resumeSessionId }
     // 记住本会话标题：子会话在自己的系统提示里会看到「我是谁」。
     state.sessionTitles.set(created.id, title)
+    // 所有权登记：OML 自己建的会话记为 oml，将来只对 oml 会话放行无 PA 删除。
+    if (opts?.resumeSessionId === undefined) {
+      state.ownership = registerOmlSession(state.ownership, {
+        id: created.id,
+        directory: state.directory,
+        ...(opts?.parentSessionId === undefined ? {} : { parentID: opts.parentSessionId }),
+        title,
+      })
+      state.saveOwnership(state.ownership)
+    }
     // resume 时可选改名：把刷新后的隶属链/标题写回宿主会话。
     if (opts?.resumeSessionId !== undefined && opts.title !== undefined) {
       await state.client.renameSession({ sessionId: created.id, title, directory: state.directory })
@@ -388,6 +415,143 @@ function spawn(
   state.store = add.store
   state.saveTasks(state.store)
   return { ok: true, task: add.task }
+}
+
+/** omo_admin action=pa 的入参（从工具 args 收窄）。 */
+interface PaArgs {
+  op?: string
+  target?: string
+  sessionId?: string
+  operation?: "delete" | "write"
+  reason?: string
+  reconcile?: boolean
+  text?: string
+}
+
+/**
+ * PA 授权处理：
+ *   - op=request：提交带说明的请求（高价值未明归属强制 reason）
+ *   - op=list：列待批；reconcile=true 时先与宿主 session.list 对账，补登不明归属会话
+ *   - op=approve/deny：人类裁决（target=请求 id）
+ *   - op=execute：批准后真正执行删除/改写（校验 isAuthorized，防未批先跑）
+ */
+async function handlePa(state: HostState, args: PaArgs): Promise<string> {
+  const op = args.op ?? "list"
+  const now = Date.now()
+
+  // 每次操作前先过期清理
+  const expired = expirePa(state.paQueue, now)
+  if (expired !== state.paQueue) {
+    state.paQueue = expired
+    state.savePa(expired)
+  }
+
+  if (op === "list" || op === "show") {
+    if (args.reconcile === true) {
+      try {
+        const sessions = await state.client.listSessions()
+        const r = reconcileWithHost(state.ownership, sessions)
+        state.ownership = r.ledger
+        state.saveOwnership(r.ledger)
+        const unknown = Object.values(r.ledger).filter((e) => e.owner === "unknown")
+        const head = `已对账 ${sessions.length} 个会话；新发现 ${r.newUnknown.length} 个不明归属。\n`
+        const list = unknown.slice(0, 30).map((e) => {
+          const s = sessions.find((x) => x.id === e.id)
+          const cr = s?.tokens?.cache?.read ?? 0
+          const hv = cr >= 100_000_000 || (s?.turns ?? 0) >= 16
+          return `- ${e.id} ${e.note ?? ""} [directory=${e.directory || "?"}${hv ? " ⚠高价值" : ""}]`
+        })
+        return head + (list.length === 0 ? "（无不明归属会话）" : list.join("\n"))
+      } catch (err) {
+        return `对账失败：${err instanceof Error ? err.message : String(err)}`
+      }
+    }
+    const pending = Object.values(state.paQueue).filter((r) => r.status === "pending")
+    if (pending.length === 0) return "（暂无待批 PA 请求）"
+    return pending.map((r) =>
+      `- [${r.id}] ${r.operation} ${r.sessionId}${r.highValue ? " ⚠高价值" : ""} owner=${r.owner}\n  说明: ${r.reason || "(无)"}`
+    ).join("\n")
+  }
+
+  if (op === "request") {
+    const sessionId = (args.sessionId ?? "").trim()
+    if (sessionId === "") return "pa op=request 需要 sessionId"
+    const operation = args.operation ?? "delete"
+    const owner = classifyOwner(state.ownership, sessionId)
+    // 取会话 value：优先从账本已知信息 + 现场 list（高价值判定）
+    let cacheRead = 0
+    let turns = 0
+    let title = ""
+    try {
+      const sessions = await state.client.listSessions()
+      const s = sessions.find((x) => x.id === sessionId)
+      if (s !== undefined) {
+        cacheRead = s.tokens?.cache?.read ?? 0
+        turns = s.turns ?? 0
+        title = s.title ?? ""
+      }
+    } catch {
+      // list 失败不阻提交：owner 仍可裁决，只是高价值判定退化为保守（缺数据）
+    }
+    const id = `pa_${now.toString(36)}_${Math.random().toString(36).slice(2, 7)}`
+    const result = submitPa(state.paQueue, {
+      id,
+      sessionId,
+      ...(title === "" ? {} : { sessionTitle: title }),
+      operation,
+      owner,
+      reason: args.reason ?? "",
+      value: { cacheReadTokens: cacheRead, turns },
+    }, now)
+    if (!result.ok) return `拒绝：${result.error}`
+    state.paQueue = result.queue
+    state.savePa(result.queue)
+    const r = result.request
+    return `已提交 PA [${id}]：${operation} ${sessionId}（owner=${owner}${r.highValue ? "，高价值" : ""}）。说明：${r.reason || "(无)"}。等待人类用 pa op=approve/deny target=${id} 裁决。`
+  }
+
+  if (op === "approve" || op === "deny") {
+    const id = (args.target ?? "").trim()
+    if (id === "") return `pa op=${op} 需要 target=<请求 id>`
+    const next = resolvePa(state.paQueue, id, op === "approve" ? "approved" : "denied", now)
+    if (next === state.paQueue) return `请求 ${id} 不存在或已裁决`
+    state.paQueue = next
+    state.savePa(next)
+    return `已${op === "approve" ? "批准" : "否决"} PA [${id}]。${op === "approve" ? "Agent 现可用 pa op=execute 执行。" : ""}`
+  }
+
+  if (op === "execute") {
+    const sessionId = (args.sessionId ?? "").trim()
+    const operation = args.operation ?? "delete"
+    if (sessionId === "") return "pa op=execute 需要 sessionId"
+    if (!isAuthorized(state.paQueue, sessionId, operation)) {
+      return `拒绝：会话 ${sessionId} 的 ${operation} 未获 PA 批准`
+    }
+    // 防误删高价值总会话：已批准的请求也必须带非空工作说明；缺说明则撤回批准，要求补说明。
+    const approved = Object.values(state.paQueue).find(
+      (r) => r.sessionId === sessionId && r.operation === operation && r.status === "approved",
+    )
+    if (approved?.highValue && approved.owner !== "oml" && approved.reason.trim() === "") {
+      const revoked = resolvePa(state.paQueue, approved.id, "denied", now)
+      state.paQueue = revoked
+      state.savePa(revoked)
+      return `拒绝执行：会话 ${sessionId} 为高价值且归属不明，但批准记录缺工作说明，已撤回批准。请重新 pa op=request 带 reason 说明它做了什么。`
+    }
+    if (operation !== "delete") return "当前仅 execute=delete 已接通；write（改写固有会话）待后续接入"
+    try {
+      await state.client.deleteSession({ sessionId })
+      // 删成功则从账本移除
+      const nextOwn: OwnershipLedger = { ...state.ownership }
+      delete nextOwn[sessionId]
+      state.ownership = nextOwn
+      state.saveOwnership(nextOwn)
+      return `已删除会话 ${sessionId}（PA 已批准）。`
+    } catch (err) {
+      return `删除失败：${err instanceof Error ? err.message : String(err)}`
+    }
+  }
+
+  return `未知 pa op=${op}（可用 request/list/approve/deny/execute）`
 }
 
 export function buildTools(state: HostState): Record<string, ReturnType<typeof tool>> {
@@ -678,7 +842,7 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
 
   const omoAdmin = tool({
     description:
-      "管理网关。model 查看/热分配子代理模型；goal 设看清目标；status 给出预算+上下文+统计+MCP 一览；checkpoint 落盘；handoff 输出交接摘要；mcp 管理 MCP 目录（show/sync/enable/disable）；memory 记忆（op=add/list/edit）。",
+      "管理网关。model 查看/热分配子代理模型；goal 设看清目标；status 给出预算+上下文+统计+MCP 一览；checkpoint 落盘；handoff 输出交接摘要；mcp 管理 MCP 目录（show/sync/enable/disable）；memory 记忆（op=add/list/edit）；compress 压缩回溯（op=add/list/decompress）；pa 会话删除/改写的授权队列（op=request/list/approve/deny/execute，高价值未明归属会话删前必须带说明）。",
     args: {
       action: tool.schema.enum(ADMIN_ACTIONS),
       target: tool.schema.string().optional().describe("model set 的目标：agent:<id> / category:<id> / default；memory 的记忆 id；mcp 的服务器 id；slop_check 的扫描目录"),
@@ -686,9 +850,9 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
       text: tool.schema.string().optional().describe("goal_set 的目标文本；memory_add 的记忆正文；compress_add 的摘要"),
       kind: tool.schema.enum(["fact", "antipattern", "snippet"]).optional().describe("memory_add 的条目类型；memory_list 的过滤"),
       op: tool.schema
-        .enum(["show", "set", "clear", "reinforce", "forget", "add", "list", "sync", "enable", "disable"])
+        .enum(["show", "set", "clear", "reinforce", "forget", "add", "list", "sync", "enable", "disable", "approve", "deny", "decompress", "request", "execute"])
         .optional()
-        .describe("model：show/set；goal：set/show/clear（缺省 show）；memory：add/list/reinforce/forget；mcp：show/sync/enable/disable"),
+        .describe("model：show/set；goal：set/show/clear（缺省 show）；memory：add/list/reinforce/forget；mcp：show/sync/enable/disable；compress：add/list/decompress（缺省 list）；pa：request/list/approve/deny"),
       apply: tool.schema.boolean().optional().describe("dreams_distill：true 时把候选直接落库，否则只列候选"),
       taskText: tool.schema.string().optional().describe("measure 时用来重选技能的文本"),
       from: tool.schema.string().optional().describe("compress_add：被压缩区间起点消息 id"),
@@ -696,6 +860,10 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
       sources: tool.schema.record(tool.schema.string(), tool.schema.string()).optional().describe("compress_add：消息 id → 原文，供 KEEP 展开"),
       savedTokens: tool.schema.number().optional().describe("compress_add：估算节省的 token"),
       messageId: tool.schema.string().optional().describe("decompress：要回溯的原文消息 id"),
+      sessionId: tool.schema.string().optional().describe("pa：要删除/改写的目标会话 id"),
+      operation: tool.schema.enum(["delete", "write"]).optional().describe("pa：delete=删会话 / write=改写固有会话"),
+      reason: tool.schema.string().optional().describe("pa：工作说明——为什么删/改写（高价值未明归属会话必填）"),
+      reconcile: tool.schema.boolean().optional().describe("pa op=list 时 true=先与宿主 session.list 对账，补登不明归属会话"),
     },
     async execute(args) {
       bump(`admin.${args.action}`)
@@ -866,43 +1034,51 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
           const head = findings.slice(0, 40).map((f) => `${f.path}:${f.line} [${f.rule}] ${f.evidence}`)
           return [`扫描 ${files.length} 个文件：${summarizeSlop(findings)}`, ...head, findings.length > 40 ? `…还有 ${findings.length - 40} 处` : ""].join("\n")
         }
-        case "compress_add": {
-          // 从最近对话文本取原文兜底；模型应通过 sources 传全被压缩消息。
-          const from = args.from ?? ""
-          const to = args.to ?? ""
-          const summary = args.text ?? ""
-          const sources = args.sources ?? {}
-          if (from === "" || to === "") return "compress_add 需要 from/to（被压缩的消息 id 区间）"
-          const r = compressRange(state.compress, {
-            from,
-            to,
-            summary,
-            sources,
-            savedTokens: Math.max(0, Number(args.savedTokens ?? 0)),
-          })
-          if (!r.ok) return r.reason
-          state.saveCompress(r.store)
-          return `已压缩为块 [${r.block.id}]（原 ${from}–${to}，省约 ${r.block.savedTokens} tok）。后续用 [[KEEP:${from}]] 保留关键原文。`
-        }
-        case "compress_list": {
-          const blocks = listBlocks(state.compress)
-          if (blocks.length === 0) return "（暂无压缩块）"
-          return JSON.stringify(
-            blocks.map((b) => ({ id: b.id, range: `${b.from}–${b.to}`, saved: b.savedTokens, summary: b.summary.slice(0, 120) })),
-            null,
-            2,
-          )
-        }
-        case "decompress": {
-          const blockId = args.target ?? ""
-          const block = state.compress.blocks[blockId]
-          if (block === undefined) return `没有压缩块 [${blockId}]`
-          const mid = args.messageId ?? ""
-          if (mid !== "") {
-            const src = decompressSource(block, mid)
-            return src === undefined ? `块 [${blockId}] 里没有原文 ${mid}` : src
+        case "compress": {
+          // 三个旧 action（compress_add/list/decompress）合并为一个，靠 op 分派，
+          // 净省 2 个 action 槽位给 pa（见 BUDGET.md 记账）。
+          const op = args.op ?? "list"
+          if (op === "add") {
+            const from = args.from ?? ""
+            const to = args.to ?? ""
+            const summary = args.text ?? ""
+            const sources = args.sources ?? {}
+            if (from === "" || to === "") return "compress op=add 需要 from/to（被压缩的消息 id 区间）"
+            const r = compressRange(state.compress, {
+              from,
+              to,
+              summary,
+              sources,
+              savedTokens: Math.max(0, Number(args.savedTokens ?? 0)),
+            })
+            if (!r.ok) return r.reason
+            state.saveCompress(r.store)
+            return `已压缩为块 [${r.block.id}]（原 ${from}–${to}，省约 ${r.block.savedTokens} tok）。后续用 [[KEEP:${from}]] 保留关键原文。`
           }
-          return block.summary
+          if (op === "list") {
+            const blocks = listBlocks(state.compress)
+            if (blocks.length === 0) return "（暂无压缩块）"
+            return JSON.stringify(
+              blocks.map((b) => ({ id: b.id, range: `${b.from}–${b.to}`, saved: b.savedTokens, summary: b.summary.slice(0, 120) })),
+              null,
+              2,
+            )
+          }
+          if (op === "decompress") {
+            const blockId = args.target ?? ""
+            const block = state.compress.blocks[blockId]
+            if (block === undefined) return `没有压缩块 [${blockId}]`
+            const mid = args.messageId ?? ""
+            if (mid !== "") {
+              const src = decompressSource(block, mid)
+              return src === undefined ? `块 [${blockId}] 里没有原文 ${mid}` : src
+            }
+            return block.summary
+          }
+          return `未知 compress op=${op}（可用 add/list/decompress）`
+        }
+        case "pa": {
+          return await handlePa(state, args)
         }
       }
     },

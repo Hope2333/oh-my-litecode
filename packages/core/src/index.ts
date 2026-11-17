@@ -23,6 +23,8 @@ export * from "./review/slop.ts"
 
 export * from "./acp.ts"
 export * from "./eigenflux/hint.ts"
+export * from "./permission/ownership.ts"
+export * from "./permission/pa.ts"
 
 export * from "./tasks/status-line.ts"
 
