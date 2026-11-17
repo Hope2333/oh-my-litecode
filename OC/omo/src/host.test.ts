@@ -1010,7 +1010,8 @@ for await (const chunk of Bun.stdin.stream()) {
     const mcp = hooks.tool!["omo_mcp"]!
 
     const synced = await admin.execute({ action: "mcp", op: "sync" }, toolCtx())
-    expect(typeof synced === "string" ? synced : synced.output).toContain("同步 1 个")
+    // 注入的 fake + 内置 context7（默认禁用）共 2 个 def 一起登记
+    expect(typeof synced === "string" ? synced : synced.output).toContain("同步 2 个")
 
     const shown = await admin.execute({ action: "mcp", op: "show" }, toolCtx())
     expect(typeof shown === "string" ? shown : shown.output).toContain("待复核")

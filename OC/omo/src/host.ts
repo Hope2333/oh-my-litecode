@@ -73,6 +73,8 @@ import {
   type SkillUsageMap,
   type TaskStore,
 } from "@oml/core"
+import { builtinMcpDefs } from "@oml/core/mcp/builtins.ts"
+import { context7Hint } from "@oml/core/mcp/context7-hint.ts"
 import { mkdir, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -389,7 +391,9 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
     })
   },
   async hostMcpDefs() {
-    return options.mcpDefs ?? (await readHostMcpDefs())
+    // OML 内置 def（context7）铺底，宿主同名 id 可覆盖；宿主 opencode.json 里不登记，
+    // 避免它重新注入工具 schema（本机实测 4 个 MCP ≈ 27K tok）。默认禁用、按需调用。
+    return { ...builtinMcpDefs(), ...(options.mcpDefs ?? (await readHostMcpDefs())) }
   },
   async writeHostMcp(catalog) {
     const path = options.hostConfigPath ?? join(homedir(), ".config/opencode/opencode.json")
@@ -642,6 +646,12 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
       // 只读检索可主动；写操作内嵌"先取得用户授权"红线；心跳会话内不主动跑。
       const efHint = eigenfluxHint(taskText, { enabled: config.eigenflux?.proactive !== false })
 
+      // Context7 证据层提示：命中"库/框架文档/API 用法/官方 docs"才注（预算外追加区）。
+      // 反修：官方文档是证据不是真理，须与本机源码/实测交叉验证，权威≠真理；默认禁用。
+      // config 里没有 mcp.context7 键也能编译（可选链），缺省视为开。
+      const c7Enabled = (config as unknown as { mcp?: { context7?: boolean } }).mcp?.context7 !== false
+      const c7Hint = context7Hint(taskText, { enabled: c7Enabled })
+
       // PA 待批提示：让人类在此会话看到待裁决的授权请求（含工作说明+高价值警告）。
       // 预算外追加区，与 efHint 同类。所有权铁律常驻一行：删/改写他建会话前必查归属。
       const pending = pendingPa(state.paQueue)
@@ -666,7 +676,7 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
         }
       }
 
-      output.system.push(`${OMO_MARKER}\n${built.prompt}${blocks === "" ? "" : `\n\n${blocks}`}${rescue}${visionHint}${identityHint}${efHint}${paHint}`)
+      output.system.push(`${OMO_MARKER}\n${built.prompt}${blocks === "" ? "" : `\n\n${blocks}`}${rescue}${visionHint}${identityHint}${efHint}${paHint}${c7Hint}`)
 
       void gate({ sections: built.sections }, { limit, logPath: logFile }).catch(
         (err: unknown) => {
