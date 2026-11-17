@@ -24,9 +24,10 @@ describe("tokenize", () => {
     expect(t).not.toContain("a")
   })
 
-  test("中文产出单字与二元组（中文无空格）", () => {
+  test("中文只产出二元组，不产单字（P0：单字是假相关噪音源）", () => {
     const t = tokenize("修复前端样式")
-    expect(t).toContain("修")
+    expect(t).not.toContain("修")
+    expect(t).not.toContain("前")
     expect(t).toContain("修复")
     expect(t).toContain("前端")
     expect(t).toContain("样式")
@@ -80,6 +81,19 @@ describe("selectSkills", () => {
   test("exclude 生效", () => {
     const picked = selectSkills(POOL, "git", { exclude: ["git-master"] })
     expect(picked.some((s) => s.name === "git-master")).toBe(false)
+  })
+
+  test("中文 bugfix 任务不被无关技能的单字假命中污染（P0 回归）", () => {
+    const noise = [
+      skill("blender-scene-craft", "Blender 电影感三维场景制作规范——建模防穿模、材质防条纹"),
+      skill("ppt-agent", "Generate visually striking PPT slides"),
+      skill("systematic-debugging", "Hypothesis-driven debugging loop for crashes, hangs"),
+    ]
+    const picked = selectSkills(noise, "修复任务状态机的父任务 bug", { minRelevance: 0.35 })
+    const names = picked.map((s) => s.name)
+    // 单字「修/复/任/务」曾让 blender 得满分；去掉单字后它不应再命中。
+    expect(names).not.toContain("blender-scene-craft")
+    expect(names).not.toContain("ppt-agent")
   })
 
   test("top 截断且结果可复现", () => {

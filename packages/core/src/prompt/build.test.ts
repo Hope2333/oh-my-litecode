@@ -41,6 +41,27 @@ describe("buildSystemPrompt", () => {
     expect(out.indexedSkills[0]?.name).toBe("git-master")
   })
 
+  test("默认 minRelevance=0.35 砍掉弱相关，但保留强相关任务技能（P1）", () => {
+    const skills = [
+      { name: "frontend-design", description: "frontend landing page design and layout", root: "/r", file: "/r/f/SKILL.md" },
+      { name: "weak-helper", description: "an unrelated utility module", root: "/r", file: "/r/w/SKILL.md" },
+    ]
+    const out = buildSystemPrompt({ skills, taskText: "frontend landing page design" })
+    const names = out.indexedSkills.map((s) => s.name)
+    expect(names).toContain("frontend-design")
+    expect(names).not.toContain("weak-helper")
+  })
+
+  test("minRelevance 可由 config 覆盖（更严）", () => {
+    const skills = [
+      { name: "a", description: "alpha target", root: "/r", file: "/r/a/SKILL.md" },
+      { name: "b", description: "alpha adjacent", root: "/r", file: "/r/b/SKILL.md" },
+    ]
+    const loose = buildSystemPrompt({ skills, taskText: "alpha target" })
+    const strict = buildSystemPrompt({ skills, taskText: "alpha target", config: { skills: { minRelevance: 0.99 } } })
+    expect(strict.indexedSkills.length).toBeLessThanOrEqual(loose.indexedSkills.length)
+  })
+
   test("disabled_skills 与已降级技能都不进索引", () => {
     const skills = [skill(1), skill(2), skill(3)]
     const usage: SkillUsageMap = { "skill-002": { hits: 0, lastUsed: 1, misses: 10 } }

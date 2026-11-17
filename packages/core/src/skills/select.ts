@@ -15,7 +15,14 @@ const STOP = new Set([
   "a", "an", "of", "to", "in", "on", "is", "it", "or", "be", "by", "as", "at", "if",
 ])
 
-/** 拉丁词（≥2 字符）+ CJK 单字与二元组（中文无空格，二元组比单字更有区分度） */
+/**
+ * 拉丁词（≥2 字符）+ CJK 二元组（中文无空格）。
+ *
+ * P0（2026-11-17 质量探测）：曾额外发单字，但单字区分度极低——「修/复/任/务/的」
+ * 几乎命中任何中文技能描述，把 26/304 个技能灌进索引（blender/ppt 混进 bugfix）。
+ * 二元组已足够表达中文相关性，单字是噪音源，删除。
+ * 误判代价可恢复：用户仍可 skill(name) 直载漏掉的技能。
+ */
 export function tokenize(text: string): string[] {
   const lower = text.toLowerCase()
   const out: string[] = []
@@ -25,7 +32,6 @@ export function tokenize(text: string): string[] {
   }
   for (const m of lower.matchAll(/[\u4e00-\u9fff]+/g)) {
     const run = m[0]
-    for (let i = 0; i < run.length; i++) out.push(run[i] ?? "")
     for (let i = 0; i + 1 < run.length; i++) out.push(run.slice(i, i + 2))
   }
   return out

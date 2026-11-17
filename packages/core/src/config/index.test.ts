@@ -80,6 +80,12 @@ describe("parseConfigText", () => {
     const r = parseConfigText('{"skills":{"maxIndex":12}}')
     expect(r.config.skills).toEqual({ maxIndex: 12 })
   })
+
+  test("skills.minRelevance 可被配置覆盖（P1）", () => {
+    const r = parseConfigText('{"skills":{"minRelevance":0.6}}')
+    expect(r.config.skills).toEqual({ minRelevance: 0.6 })
+    expect(r.warnings).toEqual([])
+  })
 })
 
 describe("resolveConfig", () => {

@@ -99,7 +99,7 @@ export function parseConfig(raw: unknown): ParseResult {
   if (isRecord(raw["skills"])) {
     const s = raw["skills"]
     const roots = Array.isArray(s["roots"]) ? s["roots"].filter((x): x is string => typeof x === "string") : undefined
-    const nums = pickNumbers(s, ["maxIndex"], warnings, "skills")
+    const nums = pickNumbers(s, ["maxIndex", "minRelevance"], warnings, "skills")
     config.skills = { ...(roots === undefined ? {} : { roots }), ...nums }
   } else if (raw["skills"] !== undefined) warnings.push("skills 必须是对象")
 

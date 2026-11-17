@@ -85,7 +85,8 @@ export function buildSystemPrompt(input: BuildInput = {}): BuildOutcome {
   const indexed = selectSkills(all, input.taskText ?? "", {
     top: config.skills?.maxIndex ?? DEFAULT_CONFIG.skills.maxIndex,
     // 只留明显相关的：弱相关条目占的是注入预算，不是注意力预算。
-    minRelevance: 0.1,
+    // P1：从硬编码 0.1 提到默认 0.35，并可由 oml.json skills.minRelevance 覆盖。
+    minRelevance: config.skills?.minRelevance ?? DEFAULT_CONFIG.skills.minRelevance,
     usage: input.usage ?? {},
     exclude: excluded,
   })

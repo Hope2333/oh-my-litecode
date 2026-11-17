@@ -79,6 +79,12 @@ export interface OmlConfig {
     roots?: string[]
     /** 注入索引的条数上限，默认 40 */
     maxIndex?: number
+    /**
+     * 相对相关性下限（0–1）：只保留「明显强于本轮最高分」的技能。默认 0.35。
+     * P1（2026-11-17）：旧值 0.1 形同虚设（best=10→floor=1，26 条全过）。
+     * 提高后弱相关条目不再占注入预算；漏判可恢复（skill(name) 直载）。
+     */
+    minRelevance?: number
   }
   tasks?: {
     concurrency?: number
@@ -141,7 +147,7 @@ export interface OmlConfig {
 }
 
 export const DEFAULT_CONFIG: Required<Pick<OmlConfig, "skills" | "tasks" | "budget">> = {
-  skills: { maxIndex: 40 },
+  skills: { maxIndex: 40, minRelevance: 0.35 },
   tasks: { concurrency: 3, maxDepth: 2, ttlMs: 30 * 60_000 },
   budget: { limit: 8192 },
 }
