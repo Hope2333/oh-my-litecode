@@ -17,8 +17,23 @@
  *   - api.kv.get / set
  */
 
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+// STATIC import, same module instance as the host. A runtime dynamic import()
+// creates a separate @opentui/solid instance with an empty renderer context and
+// createElement() throws "No renderer found" (verified on a real TUI). The
+// deploy script bundles this import into a single tui.js (solid deps external).
+import { renderOmlSessionTreePanel } from "./panel.tsx";
 import { buildSessionTree, flattenTree, type SessionNode, type TreeNode } from "./tree.ts";
-import { toSessionNodes, pruneGhosts, type SessionGetter } from "./adapter.ts";
+import {
+  annotateParadigms,
+  pruneGhosts,
+  tasksToNodes,
+  toSessionNodes,
+  type SessionGetter,
+  type TaskLike,
+} from "./adapter.ts";
 
 export interface OmlTuiApi {
   slots: { register(def: SlotDefinition): void };
@@ -94,6 +109,84 @@ export function buildViewModel(api: OmlTuiApi): { roots: TreeNode[]; ids: string
   return { roots, ids: flattenTree(roots) };
 }
 
+/** Path to the OML task ledger. OML_STATE_DIR overrides the default. */
+export function tasksFilePath(): string {
+  const base = process.env.OML_STATE_DIR || join(homedir(), ".local", "state", "oml");
+  return join(base, "tasks.json");
+}
+
+/**
+ * Extract the task list from a parsed tasks.json ledger.
+ * The OML TaskStore writes `{ version, tasks: { t1: {...}, t2: {...} }, lastId }`
+ * (tasks is an id-keyed object map). Also tolerate a bare array and `{ tasks: [...] }`
+ * for older/hand-written ledgers. This is a pure function so it can be unit tested
+ * without touching the filesystem.
+ */
+export function extractTaskList(parsed: unknown): TaskLike[] {
+  if (Array.isArray(parsed)) return parsed as TaskLike[];
+  if (parsed && typeof parsed === "object") {
+    const tasks = (parsed as { tasks?: unknown }).tasks;
+    if (Array.isArray(tasks)) return tasks as TaskLike[];
+    // Object map: { t1: {...}, t2: {...} } — the real TaskStore format.
+    if (tasks && typeof tasks === "object") {
+      return Object.values(tasks as Record<string, TaskLike>);
+    }
+  }
+  return [];
+}
+
+/**
+ * Synchronously read the optional tasks.json ledger into SessionNode[].
+ * Read/parse failure degrades to an empty list — never throws into the host render path.
+ */
+export function readTaskNodes(): SessionNode[] {
+  try {
+    const raw = readFileSync(tasksFilePath(), "utf8");
+    return tasksToNodes(extractTaskList(JSON.parse(raw)));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Merge the two documented data sources into a paradigm-annotated forest:
+ *  - api.state.session.get snapshots (via adapter.toSessionNodes, already in view)
+ *  - optional tasks.json (via adapter.tasksToNodes + annotateParadigms)
+ * Live session agent/status/title win over the ledger when ids line up; ledger
+ * nodes keep their kind/taskId so team/nested paradigms are derived correctly.
+ */
+export function buildParadigmView(
+  _api: OmlTuiApi,
+  view: { roots: TreeNode[]; ids: string[] },
+  taskNodes: SessionNode[] = readTaskNodes(),
+): { roots: TreeNode[] } {
+  const sessionNodes: SessionNode[] = toSessionNodes(view.ids, (id) => _api.state.session.get(id) ?? undefined);
+  const byId = new Map(sessionNodes.map((n) => [n.id, n]));
+  const bySid = new Map(
+    sessionNodes.filter((n) => !!n.sessionId).map((n) => [n.sessionId as string, n]),
+  );
+
+  const merged: SessionNode[] = [];
+  const seen = new Set<string>();
+  for (const t of taskNodes) {
+    const live = byId.get(t.id) ?? (t.sessionId ? bySid.get(t.sessionId) : undefined);
+    merged.push({
+      ...t,
+      title: live?.title || t.title,
+      agent: live?.agent || t.agent,
+      status: live?.status || t.status,
+    });
+    seen.add(t.id);
+  }
+  for (const s of sessionNodes) {
+    if (!seen.has(s.id)) merged.push(s);
+  }
+
+  const roots = buildSessionTree(merged, { useTitles: true });
+  annotateParadigms(roots);
+  return { roots };
+}
+
 /**
  * V1 TUI entry. `render` is injected so the pure wiring is testable; the real
  * build supplies a @opentui/solid component factory. Not provided here because
@@ -129,10 +222,42 @@ export function createOmlTui(
   };
 }
 
-/** Default entry — render is a placeholder descriptor pending a verified solid build. */
-export const tui = createOmlTui((view) => ({
-  __omlTreePlaceholder: true,
-  ids: view.ids,
-}));
+/**
+ * Default entry — real @opentui/solid sidebar panel, statically imported above.
+ * No placeholder fallback and no swallowed errors: a real failure must surface
+ * in the host log instead of silently hiding the panel.
+ */
+export const tui = async (api: OmlTuiApi): Promise<void> => {
+  api.slots.register({
+    order: 55,
+    slots: {
+      sidebar_content(ctx, input) {
+        trackSession(api, input.session_id);
+        const view = buildViewModel(api);
+        const paradigm = buildParadigmView(api, view);
+        return renderOmlSessionTreePanel({
+          api,
+          theme: ctx.theme.current,
+          sessionId: input.session_id,
+          roots: paradigm.roots,
+        });
+      },
+    },
+  });
+
+  // Preserved from the original shell: command registration.
+  api.command?.register(() => [
+    {
+      title: "OML: Open Session",
+      value: "oml-open-session",
+      description: "Jump to a session in the OML tree",
+      slash: { name: "oml-open-session" },
+      onSelect: () => {
+        const view = buildViewModel(api);
+        if (view.ids[0]) api.route.navigate("session", { sessionID: view.ids[0] });
+      },
+    },
+  ]);
+};
 
 export default { id: "oml-tui-shell", tui };

@@ -7,7 +7,7 @@
  * those snapshots into the flat list the tree model consumes.
  */
 
-import type { SessionNode } from "./tree.ts";
+import { classifyParadigm, type Paradigm, type SessionNode, type TreeNode } from "./tree.ts";
 
 export interface SessionSnapshot {
   id?: string;
@@ -77,4 +77,86 @@ export function pruneGhosts(
       return true;
     }
   });
+}
+
+/**
+ * Structural slice of an OML `TaskRecord` (packages/core/src/tasks/store.ts:25).
+ * Deliberately re-declared here instead of imported from core so tui-shell stays
+ * a zero-dependency, headless-testable package. Members are intentionally NOT
+ * carried — team fan-out is recovered from the parentId relation alone, so we
+ * never double-expand a team into both member records and synthetic children.
+ */
+export interface TaskLike {
+  id: string;
+  parentId: string | null;
+  description: string;
+  kind?: string;
+  status?: string;
+  sessionId?: string;
+}
+
+/** Parse a leading "role: ..." label, e.g. team member briefs "${role}: ${brief}". */
+function parseRole(description: string): string | undefined {
+  const m = /^([^:]{1,64}):\s/.exec(description ?? "");
+  return m ? m[1]!.trim() : undefined;
+}
+
+/** Initial paradigm from the raw task record, before tree-shape annotation runs. */
+function initialParadigm(kind?: string): Paradigm | undefined {
+  return kind === "team" ? "team" : undefined;
+}
+
+/**
+ * Map a flat list of OML tasks into the SessionNode[] the tree model consumes:
+ * task.id → id, task.parentId → parentID, task.description → title,
+ * task.sessionId → sessionId, plus an initial paradigm/kind. The resulting
+ * forest (via buildSessionTree) forms team-member children purely from the
+ * parentId relation — members are not separately expanded.
+ */
+export function tasksToNodes(tasks: TaskLike[]): SessionNode[] {
+  const out: SessionNode[] = [];
+  for (const t of tasks) {
+    if (!t || typeof t.id !== "string" || t.id.length === 0) continue;
+    out.push({
+      id: t.id,
+      parentID: t.parentId || undefined,
+      title: t.description || t.id,
+      taskId: t.id,
+      kind: t.kind,
+      status: t.status,
+      sessionId: t.sessionId,
+      paradigm: initialParadigm(t.kind),
+    });
+  }
+  return out;
+}
+
+/**
+ * Annotate a built forest with derived delegation paradigms (in place).
+ *
+ * Walks the tree bottom-up-friendly DFS and, for each node, applies
+ * classifyParadigm using the node's raw kind and whether it has children in
+ * the tree. Team nodes additionally propagate their parsed role onto member
+ * child nodes. Structural invariants (ids, parentID, children, depth,
+ * ancestors, affiliation) are left untouched — only node.paradigm / node.role
+ * are written, so flattenTree(roots) is identical before and after.
+ */
+export function annotateParadigms(roots: TreeNode[]): void {
+  const visit = (n: TreeNode): void => {
+    for (const c of n.children) visit(c);
+    // classifyParadigm takes {kind, parentId}; parentId only feeds the
+    // team branch, which is already keyed off kind, so null is safe here.
+    n.node.paradigm = classifyParadigm(
+      { kind: n.node.kind, parentId: n.node.parentID ?? null },
+      n.children.length > 0,
+    );
+    n.paradigm = n.node.paradigm;
+    if (n.node.paradigm === "team") {
+      const parentRole = n.node.role ?? parseRole(n.node.title ?? "");
+      for (const c of n.children) {
+        c.node.role = c.node.role ?? parseRole(c.node.title ?? "") ?? parentRole;
+      }
+    }
+  };
+  for (const r of roots) visit(r);
 }

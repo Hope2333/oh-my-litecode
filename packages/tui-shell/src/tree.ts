@@ -8,6 +8,9 @@
  * tree is always finite and renderable.
  */
 
+/** Delegation paradigm of a task, derived from its shape in the tree. */
+export type Paradigm = "single" | "nested" | "team";
+
 export interface SessionNode {
   id: string;
   parentID?: string;
@@ -15,6 +18,16 @@ export interface SessionNode {
   title?: string;
   agent?: string;
   status?: string;
+  /** OML task id this session was spawned for (absent for host/root sessions). */
+  taskId?: string;
+  /** Host session id the OML task ran in (mirrors TaskRecord.sessionId). */
+  sessionId?: string;
+  /** Delegation paradigm derived from tree shape — see classifyParadigm. */
+  paradigm?: Paradigm;
+  /** Raw OML task kind ("task" | "team"); mirrors TaskRecord.kind. */
+  kind?: string;
+  /** Team-member role, e.g. "impl" / "review" (parsed from "${role}: ${brief}"). */
+  role?: string;
 }
 
 export interface TreeNode {
@@ -25,6 +38,30 @@ export interface TreeNode {
   affiliation: string;
   depth: number;
   children: TreeNode[];
+  /**
+   * Derived delegation paradigm, populated by annotateParadigms (not by
+   * buildSessionTree, which knows nothing of OML task semantics). Undefined
+   * until annotated, so the tree model stays a pure structure builder.
+   */
+  paradigm?: Paradigm;
+}
+
+/**
+ * Classify the delegation paradigm of one task from its kind and whether it
+ * has children in the tree:
+ *   - kind === "team"            → "team"   (parallel fan-out to members)
+ *   - has children (descendants) → "nested" (multi-layer serial delegation)
+ *   - leaf                       → "single" (one sub-agent)
+ *
+ * Pure: no tree walking here — the caller supplies hasChildren so the same rule
+ * works on a flat task map or on an already-built tree.
+ */
+export function classifyParadigm(
+  task: { kind?: string; parentId: string | null },
+  hasChildren: boolean,
+): Paradigm {
+  if (task.kind === "team") return "team";
+  return hasChildren ? "nested" : "single";
 }
 
 export interface TreeOptions {

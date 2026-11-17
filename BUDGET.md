@@ -18,6 +18,7 @@
 | 内核运行时依赖 | 0 | 0 | 只用 node: 内建 + @opencode-ai/plugin 的类型 |
 | 适配层行数（OC） | 300 | host+index 295（全目录含 client/tools/web 共 1804 行） | 300 只约束「入口+宿主装配」，业务逻辑在 client/tools/web 三个职责文件 |
 | 适配层行数（OC2） | 300 | 骨架 | — |
+| TUI 外壳（B 实验分支） | — | 6 新增文件（packages/tui-shell/ 下 panel.tsx/deploy.ts/*.test.ts/*.d.ts） | 实验分支 experiment/oml-tui-shell，非默认导出、不进宿主提示/工具面/预算；纯可视化与测试代码，零注入成本，故书面豁免 A10 |
 
 ## 当前实测（2026-11-13）
 
@@ -31,4 +32,5 @@ PASS types / tests(177) / budget(2422) / host(889) / surface(4 工具,6 hook) / 
 
 ```
 - YYYY-MM-DD | 新增项 | 等量删除项 / 豁免理由 | 批准人
+- 2026-11-18 | B 路线 TUI 外壳 6 文件（packages/tui-shell/） | 实验分支，非默认导出；纯可视化/测试代码，零 token/hook/tool/action 注入成本，不影响任何受约束货币 | 用户（B 路线授权）
 ```

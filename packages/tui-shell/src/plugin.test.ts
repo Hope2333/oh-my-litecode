@@ -1,12 +1,10 @@
+// Solid module mocks must be registered before plugin.ts (which statically
+// imports panel.tsx) is loaded. See solid-test-shim.ts.
+import "./solid-test-shim.ts";
 import { describe, it, expect } from "bun:test";
-import {
-  createOmlTui,
-  trackSession,
-  buildViewModel,
-  KV_PREFIX,
-  SESSION_IDS_KEY,
-  type OmlTuiApi,
-} from "./plugin.ts";
+import type { OmlTuiApi } from "./plugin.ts";
+
+const { createOmlTui, trackSession, buildViewModel, KV_PREFIX, SESSION_IDS_KEY } = await import("./plugin.ts");
 
 function fakeApi(sessions: Record<string, { parentID?: string; agent?: string; title?: string }> = {}): OmlTuiApi {
   const kv = new Map<string, string>();
