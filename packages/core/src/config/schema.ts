@@ -101,6 +101,11 @@ export interface OmlConfig {
   disabled_skills?: string[]
   disabled_tools?: string[]
   disabled_hooks?: string[]
+  /** EigenFlux 主动提示开关：符合需求时提示 Agent 走 agent 网络（只读主动、写操作先授权）。 */
+  eigenflux?: {
+    /** 默认 true；设 false 则完全不注入 EigenFlux 提示。 */
+    proactive?: boolean
+  }
   /** 与旧 OMO 的兼容开关；关掉旧 OMO 后才建议打开。 */
   compat?: {
     /** 额外注册名为 `task` 的工具（等价于 omo_task）。默认关，避免同名互撞。 */

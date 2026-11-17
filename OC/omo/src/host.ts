@@ -53,6 +53,7 @@ import {
   pruneTerminal,
   recordHit,
   recordMisses,
+  eigenfluxHint,
   saveTasks,
   saveUsage,
   scanSkills,
@@ -597,6 +598,10 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
       const ownTitle = state.sessionTitles.get(sid)
       const identityHint = ownTitle === undefined ? "" : `\n## 会话身份\n- 本会话标题：${ownTitle}`
 
+      // EigenFlux 主动提示：命中"外部事实/找 agent/广播"等场景才注（预算外追加区）。
+      // 只读检索可主动；写操作内嵌"先取得用户授权"红线；心跳会话内不主动跑。
+      const efHint = eigenfluxHint(taskText, { enabled: config.eigenflux?.proactive !== false })
+
       // 主动控制：占用过八成就不再依赖模型自觉，直接把状态落盘成检查点。
       // 每 10 分钟最多一次，避免每轮 flush 写盘。
       const pct = Math.round((built.report.totalTokens / Math.max(1, built.report.budget.limit)) * 100)
@@ -611,7 +616,7 @@ export async function createHostCore(input: HostInput, options: OmoHostOptions =
         }
       }
 
-      output.system.push(`${OMO_MARKER}\n${built.prompt}${blocks === "" ? "" : `\n\n${blocks}`}${rescue}${visionHint}${identityHint}`)
+      output.system.push(`${OMO_MARKER}\n${built.prompt}${blocks === "" ? "" : `\n\n${blocks}`}${rescue}${visionHint}${identityHint}${efHint}`)
 
       void gate({ sections: built.sections }, { limit, logPath: logFile }).catch(
         (err: unknown) => {

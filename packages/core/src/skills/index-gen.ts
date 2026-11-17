@@ -6,12 +6,12 @@
  */
 
 import {
-  SKILL_DEMOTE_AFTER_MISSES,
   SKILL_INDEX_TOP,
   SKILL_TRIGGER_MAX_CHARS,
   type SkillMeta,
   type SkillUsageMap,
 } from "../contract.ts"
+import { isDemoted } from "./usage.ts"
 
 export interface IndexOptions {
   /** 最多保留条数（默认 SKILL_INDEX_TOP） */
@@ -47,7 +47,7 @@ export function triggerOf(description: string, maxChars: number = SKILL_TRIGGER_
 
 /**
  * 过滤 + 排序 + 渲染索引行。
- * 过滤：usage[name].misses >= SKILL_DEMOTE_AFTER_MISSES 且 hits === 0 → 排除（已降级）。
+ * 过滤：isDemoted(usage[name]) → 排除（曝光够多且命中率过低，见 usage.ts）。
  * 排序：hits 降序，其次 name 升序。
  * 取前 top 条（默认 SKILL_INDEX_TOP）。
  */
@@ -62,8 +62,8 @@ export function buildIndexLines(
   const rows: { name: string; hits: number; line: string }[] = []
   for (const s of skills) {
     const u = usage[s.name]
-    // 已降级：从未命中且连续未命中达到阈值
-    if (u && u.hits === 0 && u.misses >= SKILL_DEMOTE_AFTER_MISSES) continue
+    // 已降级：曝光够多且命中率过低（与 build.ts 的 exclude 共用 isDemoted 判据）
+    if (u && isDemoted(u)) continue
     const trigger = triggerOf(s.description, maxChars)
     rows.push({ name: s.name, hits: u?.hits ?? 0, line: `- ${s.name}: ${trigger}` })
   }

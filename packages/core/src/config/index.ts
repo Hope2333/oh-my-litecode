@@ -39,6 +39,7 @@ const KNOWN_KEYS = new Set([
   "worldview",
   "constraints",
   "models",
+  "eigenflux",
   "telemetry",
 ])
 
@@ -126,6 +127,20 @@ export function parseConfig(raw: unknown): ParseResult {
         if (fb.length > 0) spec.fallback = fb
       } else if (m["fallback"] !== undefined) warnings.push("models.fallback 必须是字符串数组")
       config.models = spec
+    }
+  }
+
+  if (raw["eigenflux"] !== undefined) {
+    if (!isRecord(raw["eigenflux"])) {
+      warnings.push("eigenflux 必须是对象")
+    } else {
+      const e = raw["eigenflux"]
+      const eig: NonNullable<OmlConfig["eigenflux"]> = {}
+      if (e["proactive"] !== undefined) {
+        if (typeof e["proactive"] === "boolean") eig.proactive = e["proactive"]
+        else warnings.push("eigenflux.proactive 必须是布尔值")
+      }
+      config.eigenflux = eig
     }
   }
 

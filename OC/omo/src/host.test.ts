@@ -128,6 +128,32 @@ describe("createHostCore", () => {
     expect(output.system[0]).toContain("frontend")
   })
 
+  test("EigenFlux 主动提示：命中只读场景才注入，写操作带授权红线，可配置关闭", async () => {
+    const hooks = await createHostCore(
+      { directory: dir, client: fakeClient() },
+      { skillRoots: [skillsRoot], stateDir },
+    )
+    const run = async (text: string, config?: Record<string, unknown>): Promise<string> => {
+      const h = config
+        ? (await createHostCore({ directory: dir, client: fakeClient() }, { skillRoots: [skillsRoot], stateDir, config }))
+        : hooks
+      await h["chat.message"]!(
+        { sessionID: "ses_ef" },
+        { message: {} as never, parts: [{ type: "text", text } as never] },
+      )
+      const out = { system: [] as string[] }
+      await h["experimental.chat.system.transform"]!({ sessionID: "ses_ef", model: {} as never }, out)
+      return out.system[0] ?? ""
+    }
+    const readonly = await run("查一下最新的行业动态")
+    expect(readonly).toContain("EigenFlux")
+    expect(readonly).toContain("只读")
+    const write = await run("把里程碑广播出去")
+    expect(write).toContain("授权")
+    const off = await run("查最新的行业动态", { eigenflux: { proactive: false } })
+    expect(off).not.toContain("EigenFlux")
+  })
+
   test("视觉路由：会话含图 + 当前模型不可见 → 注入一行提示；可视觉模型 → 不注入", async () => {
     const hooks = await createHostCore(
       { directory: dir, client: fakeClient() },

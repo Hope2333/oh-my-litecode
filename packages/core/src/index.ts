@@ -22,6 +22,7 @@ export * from "./compress/store.ts"
 export * from "./review/slop.ts"
 
 export * from "./acp.ts"
+export * from "./eigenflux/hint.ts"
 
 export * from "./tasks/status-line.ts"
 

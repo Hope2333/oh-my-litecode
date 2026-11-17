@@ -137,8 +137,15 @@ export const SKILL_INDEX_TOP = 40
 /** 索引中每条触发语的最大字符数 */
 export const SKILL_TRIGGER_MAX_CHARS = 40
 
-/** 连续未命中多少次后降级出索引 */
+/** 被提供（进候选索引）却未被加载多少次后，才有资格降级出索引 */
 export const SKILL_DEMOTE_AFTER_MISSES = 10
+
+/**
+ * 降级命中率下限（P2·群众路线：看真实反馈，不看名头）。
+ * 命中率 = hits / (hits + misses)。低于此值且被提供够多次 → 降级。
+ * 推翻旧 `hits===0` 规则：一次历史命中不再是终身豁免（1 hit / 656 misses 仍应降级）。
+ */
+export const SKILL_MIN_HIT_RATE = 0.05
 
 /** Hook 硬上限（A8 精兵简政） */
 export const HOOK_BUDGET = 8

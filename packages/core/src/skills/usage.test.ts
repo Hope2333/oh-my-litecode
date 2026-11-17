@@ -1,16 +1,18 @@
 import { describe, test, expect, beforeEach, afterEach } from "bun:test"
 import { mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { join, dirname } from "node:path"
 import {
   usagePath,
   loadUsage,
   saveUsage,
   recordHit,
   recordMisses,
+  hitRate,
+  isDemoted,
   demoted,
 } from "./usage.ts"
-import { SKILL_DEMOTE_AFTER_MISSES, type SkillUsageMap } from "../contract.ts"
+import { SKILL_DEMOTE_AFTER_MISSES, SKILL_MIN_HIT_RATE, type SkillUsageMap } from "../contract.ts"
 
 describe("usagePath", () => {
   test("路径为 <stateDir>/skill-usage.json（默认 ~/.local/state/oml）", () => {
@@ -43,29 +45,54 @@ describe("recordHit（纯函数）", () => {
 })
 
 describe("recordMisses（纯函数）", () => {
-  test("activeNames 归零，其余 misses+1，不修改入参", () => {
+  test("只有被提供的名字 misses+1，未提供的原样保留，不修改入参", () => {
     const orig: SkillUsageMap = {
-      active: { hits: 0, lastUsed: 0, misses: 3 },
-      idle: { hits: 0, lastUsed: 0, misses: 1 },
+      offered: { hits: 0, lastUsed: 0, misses: 3 },
+      notOffered: { hits: 0, lastUsed: 0, misses: 1 },
     }
     const snapshot = JSON.stringify(orig)
-    const next = recordMisses(orig, ["active"])
+    const next = recordMisses(orig, ["offered"])
 
     expect(next).not.toBe(orig)
     expect(JSON.stringify(orig)).toBe(snapshot)
 
-    expect(next["active"]?.misses).toBe(0)
-    expect(next["idle"]?.misses).toBe(2)
+    expect(next["offered"]?.misses).toBe(4)
+    // 未被提供：不再制造假信号（旧实现会把它 +1 到 2）
+    expect(next["notOffered"]?.misses).toBe(1)
+  })
+
+  test("真被加载的条目由 recordHit 归零，组合语义为真实未命中", () => {
+    const offered = recordMisses({ x: { hits: 0, lastUsed: 0, misses: 0 } }, ["x"])
+    expect(offered.x?.misses).toBe(1)
+    const loaded = recordHit(offered, "x", 100)
+    expect(loaded.x).toEqual({ hits: 1, lastUsed: 100, misses: 0 })
   })
 })
 
-describe("demoted", () => {
-  test("返回 misses>=threshold 且 hits=0 的名字，字典序", () => {
+describe("hitRate / isDemoted / demoted", () => {
+  test("hitRate：命中率 = hits/(hits+misses)，无曝光视为 1", () => {
+    expect(hitRate({ hits: 1, misses: 9 })).toBeCloseTo(0.1)
+    expect(hitRate({ hits: 0, misses: 0 })).toBe(1)
+  })
+
+  test("一次历史命中不再是终身豁免（1 hit / 656 misses 仍降级）", () => {
+    const stale = { hits: 1, lastUsed: 0, misses: 656 }
+    expect(hitRate(stale)).toBeLessThan(SKILL_MIN_HIT_RATE)
+    expect(isDemoted(stale)).toBe(true)
+    expect(demoted({ stale })).toEqual(["stale"])
+  })
+
+  test("高频技能即使有未命中也不降级", () => {
+    const hot = { hits: 20, lastUsed: 0, misses: 30 }
+    expect(hitRate(hot)).toBeGreaterThan(SKILL_MIN_HIT_RATE)
+    expect(isDemoted(hot)).toBe(false)
+  })
+
+  test("曝光不足不降级；返回名字字典序", () => {
     const u: SkillUsageMap = {
       b_cold: { hits: 0, lastUsed: 0, misses: SKILL_DEMOTE_AFTER_MISSES },
       a_cold: { hits: 0, lastUsed: 0, misses: SKILL_DEMOTE_AFTER_MISSES },
       warm: { hits: 0, lastUsed: 0, misses: SKILL_DEMOTE_AFTER_MISSES - 1 },
-      used: { hits: 2, lastUsed: 0, misses: SKILL_DEMOTE_AFTER_MISSES },
     }
     expect(demoted(u)).toEqual(["a_cold", "b_cold"])
   })
@@ -97,6 +124,19 @@ describe("loadUsage / saveUsage 往返", () => {
     await saveUsage(u, file)
     const loaded = await loadUsage(file)
     expect(loaded).toEqual(u)
+  })
+
+  test("saveUsage 原子写：无残留 tmp，连续两次写后内容完整无 NUL（回归）", async () => {
+    const a: SkillUsageMap = { x: { hits: 9, lastUsed: 1, misses: 0 } }
+    const b: SkillUsageMap = { y: { hits: 1, lastUsed: 2, misses: 3 } }
+    await saveUsage(a, file)
+    await saveUsage(b, file)
+    const { readdir, readFile } = await import("node:fs/promises")
+    const entries = await readdir(dirname(file))
+    expect(entries.some((e) => e.endsWith(".tmp"))).toBe(false)
+    const raw = await readFile(file, "utf8")
+    expect(raw).not.toContain("\0")
+    expect(loadUsage(file)).resolves.toEqual(b)
   })
 
   test("loadUsage 对不存在的文件返回 {}", async () => {
