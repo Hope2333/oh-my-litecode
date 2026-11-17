@@ -10,6 +10,8 @@ import {
   needsUpgrade,
   planThirds,
   upgradeCommand,
+  forkSyncCommand,
+  isForkManaged,
   type ThirdEntry,
 } from "./third.ts"
 
@@ -18,6 +20,16 @@ describe("注册表：用户决策的 3rd systems", () => {
     expect(THIRD_SYSTEMS.map((t) => t.name)).toEqual(["opencode-visual-cache", "opencode-subagent-magazine"])
     expect(THIRD_SYSTEMS.every((t) => t.kind === "tui")).toBe(true)
     expect(THIRD_AUTO_UPGRADE_DEFAULT).toBe(true)
+  })
+
+  test("两个 TUI 件都是 OML fork（升级重放补丁，不重装上游）", () => {
+    expect(THIRD_SYSTEMS.every((t) => t.fork === true)).toBe(true)
+    expect(isForkManaged("opencode-visual-cache")).toBe(true)
+    expect(isForkManaged("opencode-subagent-magazine")).toBe(true)
+    expect(isForkManaged("opencode-acp")).toBe(false)
+    const cmd = forkSyncCommand()
+    expect(cmd[0]).toBe("bun")
+    expect(cmd[1]).toContain("tui-plugins/sync.ts")
   })
 })
 
@@ -112,6 +124,10 @@ describe("runThirdUpgrade（DI 注入，不发网络不 spawn）", () => {
     expect(results.map((r) => r.system)).toEqual(["opencode-acp", "opencode-visual-cache", "opencode-subagent-magazine"])
     expect(results.every((r) => r.missing && r.acted)).toBe(true)
     expect(ledger.lastRun).toBe(2_000_000_000)
+    // fork 件：upgradable 恒 false（锁定仓内 bundle），note 说明重放补丁
+    const forks = results.filter((r) => isForkManaged(r.system))
+    expect(forks).toHaveLength(2)
+    expect(forks.every((r) => r.upgradable === false && r.note.includes("补丁重放"))).toBe(true)
   })
 
   test("autoUpgrade=false → 只报告不触发", async () => {

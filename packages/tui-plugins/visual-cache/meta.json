@@ -1,0 +1,15 @@
+{
+  "name": "opencode-visual-cache",
+  "slotId": "opencode-visual-cache",
+  "upstreamVersion": "1.6.2",
+  "license": "MIT",
+  "kind": "tui",
+  "fork": {
+    "newPrefix": "oml_cache_panel",
+    "legacyPrefix": "cache_panel",
+    "patch": "../patch.ts:patchVisualCache",
+    "note": "KV 前缀隔离，避免与上游/旧版缓存串键；slot id 与 API key 运行时逻辑不变"
+  },
+  "source": "opencode-visual-cache@1.6.2 (MIT, github.com/Hotakus), prebuilt dist/tui.js",
+  "modified": true
+}

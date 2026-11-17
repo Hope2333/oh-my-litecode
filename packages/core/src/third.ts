@@ -13,6 +13,8 @@
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { statePath } from "./paths.ts"
 import { pickAcp, hasAcpPlugin, majorOf, type AcpHost } from "./acp.ts"
 
@@ -24,12 +26,27 @@ export interface ThirdSystem {
   kind: "acp" | "tui"
   /** npm 包名（与 name 相同时可省） */
   npm?: string
+  /** OML 维护的 fork：升级 = 重放 OML 补丁，绝不 `opencode plugin` 重装上游（会冲掉补丁） */
+  fork?: boolean
 }
 
 export const THIRD_SYSTEMS: readonly ThirdSystem[] = [
-  { name: "opencode-visual-cache", kind: "tui" },
-  { name: "opencode-subagent-magazine", kind: "tui" },
+  { name: "opencode-visual-cache", kind: "tui", fork: true },
+  { name: "opencode-subagent-magazine", kind: "tui", fork: true },
 ]
+
+/** 仓库根（packages/core/src → ../../..），用于定位 fork 部署器。 */
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..")
+
+/** fork 管理系统的升级命令：重放 OML 补丁（幂等），不碰上游安装。 */
+export function forkSyncCommand(): string[] {
+  return ["bun", resolve(REPO_ROOT, "packages", "tui-plugins", "sync.ts")]
+}
+
+/** 该系统是否由 OML fork 管理。 */
+export function isForkManaged(name: string): boolean {
+  return THIRD_SYSTEMS.find((t) => t.name === name)?.fork === true
+}
 
 /** 自动升级默认开（用户决策）。 */
 export const THIRD_AUTO_UPGRADE_DEFAULT = true
@@ -249,15 +266,19 @@ export async function runThirdUpgrade(opts: ThirdUpgradeOptions): Promise<{ resu
   const results: ThirdUpgradeResult[] = []
   for (const system of plan.required) {
     const missing = plan.missing.includes(system)
+    const forkManaged = isForkManaged(system)
     const entry = ledger.entries[system]
     const installed = (await installedFromDisk(system)) ?? entry?.installed
     const npm = THIRD_SYSTEMS.find((t) => t.name === system)?.npm ?? system
     const latest = (await fetchLatest(npm)) ?? entry?.latest
-    const upgradable = !missing && needsUpgrade({ installed, latest, checkedAt: 0 } as ThirdEntry)
-    const shouldAct = auto && (missing || upgradable)
+    // fork 版固定到仓内 bundle：不追 npm 新版（追新版会重装上游、冲掉补丁）。
+    // fork 的「升级」= 重放 OML 补丁（幂等自愈），命令走 forkSyncCommand。
+    const upgradable = forkManaged ? false : !missing && needsUpgrade({ installed, latest, checkedAt: 0 } as ThirdEntry)
+    const cmd = forkManaged ? forkSyncCommand() : upgradeCommand(system)
+    const shouldAct = forkManaged ? auto : auto && (missing || upgradable)
     let acted = false
     if (shouldAct) {
-      spawn(upgradeCommand(system))
+      spawn(cmd)
       acted = true
     }
     ledger.entries[system] = {
@@ -275,15 +296,19 @@ export async function runThirdUpgrade(opts: ThirdUpgradeOptions): Promise<{ resu
       missing,
       upgradable,
       acted,
-      note: missing
-        ? (acted ? `未安装 → 已触发安装（${upgradeCommand(system).join(" ")}）` : "未安装" + (auto ? "；autoUpgrade 关闭？" : ""))
-        : upgradable
-          ? acted
-            ? `${installed ?? "?"} → ${latest ?? "?"}，已触发升级`
-            : `可升级 ${installed ?? "?"} → ${latest ?? "?"}（未触发：autoUpgrade 关）`
-          : latest === undefined
-            ? `${installed ?? "?"}（最新版检查失败：离线或网络受限）`
-            : `${installed ?? "?"}（已是最新，或版本不可比（latest 目录）保守不触发）`,
+      note: forkManaged
+        ? acted
+          ? `OML fork：已触发补丁重放（${cmd.join(" ")}），版本锁定仓内 bundle`
+          : `OML fork：版本锁定仓内 bundle（autoUpgrade 关，未重放补丁）`
+        : missing
+          ? (acted ? `未安装 → 已触发安装（${cmd.join(" ")}）` : "未安装" + (auto ? "；autoUpgrade 关闭？" : ""))
+          : upgradable
+            ? acted
+              ? `${installed ?? "?"} → ${latest ?? "?"}，已触发升级`
+              : `可升级 ${installed ?? "?"} → ${latest ?? "?"}（未触发：autoUpgrade 关）`
+            : latest === undefined
+              ? `${installed ?? "?"}（最新版检查失败：离线或网络受限）`
+              : `${installed ?? "?"}（已是最新，或版本不可比（latest 目录）保守不触发）`,
     })
   }
   ledger.lastRun = now

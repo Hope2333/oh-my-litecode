@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T00:35:42.746Z",
+  "generatedAt": "2026-11-17T01:14:47.623Z",
   "files": {
     ".gitignore": "0b25d6d29fe015c9",
     ".opencode/.gitignore": "663a068e76d264d0",
@@ -139,8 +139,18 @@
     "packages/core/src/tasks/status-line.ts": "116b124213068a18",
     "packages/core/src/tasks/store.test.ts": "aa6c3146be0eeb05",
     "packages/core/src/tasks/store.ts": "02383fe331ce6c4d",
-    "packages/core/src/third.test.ts": "9fc0cf41e7b2e1ee",
-    "packages/core/src/third.ts": "5b5ad85af8858583",
+    "packages/core/src/third.test.ts": "5773cefdf74bf615",
+    "packages/core/src/third.ts": "82149cc37d994f23",
+    "packages/tui-plugins/README.md": "633499733cc5af12",
+    "packages/tui-plugins/patch.test.ts": "cfe45a269783674a",
+    "packages/tui-plugins/patch.ts": "ecf89a258ed66f92",
+    "packages/tui-plugins/subagent-magazine/LICENSE": "6c252d7eda463e6e",
+    "packages/tui-plugins/subagent-magazine/bundle/tui.js": "f3e719088e626d8a",
+    "packages/tui-plugins/subagent-magazine/meta.json": "362ae4d819c39772",
+    "packages/tui-plugins/sync.ts": "f593a5c65948782c",
+    "packages/tui-plugins/visual-cache/LICENSE": "6c252d7eda463e6e",
+    "packages/tui-plugins/visual-cache/bundle/tui.js": "6965426050d5e8c9",
+    "packages/tui-plugins/visual-cache/meta.json": "9a763334b0e7db08",
     "scripts/check.ts": "c277c74cb262c3a8",
     "scripts/manifest.ts": "8ae4aac91acfc4ad",
     "tsconfig.json": "cd2b2a22e5223d3f"

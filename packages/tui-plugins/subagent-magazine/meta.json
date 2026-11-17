@@ -1,0 +1,15 @@
+{
+  "name": "opencode-subagent-magazine",
+  "slotId": "opencode-subagent-magazine",
+  "upstreamVersion": "1.5.2",
+  "license": "MIT",
+  "kind": "tui",
+  "fork": {
+    "newPrefix": "oml_subagent_magazine",
+    "legacyPrefix": "subagent_magazine",
+    "patch": "../patch.ts:patchMagazine",
+    "note": "KV 前缀隔离修幽灵会话；仅迁移用户设置不迁 session_data；clearedIds 保留；running 版无 dbSync"
+  },
+  "source": "opencode-subagent-magazine@1.5.2 (MIT, github.com/Hotakus), prebuilt dist/tui.js",
+  "modified": true
+}
