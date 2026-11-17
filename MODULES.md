@@ -114,3 +114,15 @@
   或 `omo_task` 派 multimodal-looker。无图/可视觉模型时 0 注入。
 - `VISION_MODEL_IDS`（2026-11-17 纯色探针实测）：agnes-3.0-flash、sensenova-6.8-flash
   及其变体；kimi-k3 吞图、glm-5.3 超时、gemini-omni-* 上游 503，均不入表。
+
+## 质量探测修复的三个根因（2026-11-17，勿改回）
+
+三个都是「看起来无害、实际在系统里制造假信号」的改动，各有回归测试守着。换人接手时先看这里再动相关代码。
+
+| 根因 | 位置 | 错误如何表现 | 为什么不能改回 | 守卫测试 |
+|---|---|---|---|---|
+| CJK 单字 tokenize | `packages/core/src/skills/select.ts` | 单字「修/复/任/务/的」命中几乎所有中文技能描述，"修状态机 bug"任务索引进 blender/ppt（26 条 / 2017 tok） | 单字区分度≈0，是假相关；二元组足够表达中文相关性。改回会让无关技能重占注入预算 | `select.test.ts`「中文只产出二元组」+「bugfix 不被无关技能单字假命中污染」 |
+| `hits===0` 终身豁免 | `packages/core/src/skills/usage.ts` | 技能只要历史上被加载过 1 次，即便后续 831 次曝光未用也永不降级——名头压倒真实反馈 | 应看命中率 `hits/(hits+misses)`；一次命中不是终身通行证。实测 6 个陈旧技能（1 hit / 700+ misses）因此降级 | `usage.test.ts`「一次历史命中不再是终身豁免」（isDemoted + demoted） |
+| 非原子写状态文件 | `packages/core/src/skills/usage.ts` `saveUsage` | 裸 `writeFile` 在并发/中断下留下尾部 NUL 与截断，实际损坏过本机 `skill-usage.json`（末尾 `},` 后缺 `}`） | codebase 其余状态写入（mcp/catalog、memory/store、tasks/store 等）全部 tmp→rename 原子提交；此处是唯一例外，必须对齐 | `usage.test.ts`「原子写：无残留 tmp，连续两次写后内容完整无 NUL」 |
+
+配套：`demoted` 判据已统一为单一来源 `isDemoted`（`usage.ts` 与 `index-gen.ts` 共用），改降级逻辑只改一处。

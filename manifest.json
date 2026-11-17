@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T03:18:24.233Z",
+  "generatedAt": "2026-11-17T03:28:58.868Z",
   "files": {
     ".gitignore": "0b25d6d29fe015c9",
     ".opencode/.gitignore": "663a068e76d264d0",
@@ -8,7 +8,7 @@
     ".opencode/package.json": "c87a5df27ef88aff",
     ".opencode/tui.json": "bd6bc9722b57a357",
     "BUDGET.md": "e4d447cf76241b39",
-    "MODULES.md": "6684b81375d46874",
+    "MODULES.md": "8e3b317edd8d5ef6",
     "OC/omo/README.md": "553c262641510307",
     "OC/omo/package.json": "adfe1e993ced706a",
     "OC/omo/skills/neko-atlas/SKILL.md": "2776e0b46750c386",
