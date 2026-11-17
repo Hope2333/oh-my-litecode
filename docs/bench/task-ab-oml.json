@@ -1,0 +1,62 @@
+{
+  "label": "oml",
+  "model": "bailing/Ling-3.0-flash",
+  "config": null,
+  "at": "2026-11-14T21:40:05.268Z",
+  "passed": 5,
+  "total": 5,
+  "inputTokens": 227632,
+  "avgSteps": 10.4,
+  "tasks": [
+    {
+      "id": "01-ndjson",
+      "ok": true,
+      "reason": "PASS NDJSON 两行且字段正确",
+      "inputTokens": 25083,
+      "outputTokens": 1079,
+      "steps": 12,
+      "ms": 35497,
+      "exitCode": 0
+    },
+    {
+      "id": "02-bugfix",
+      "ok": true,
+      "reason": "PASS 测试通过且未改测试",
+      "inputTokens": 71953,
+      "outputTokens": 558,
+      "steps": 7,
+      "ms": 21965,
+      "exitCode": 0
+    },
+    {
+      "id": "03-cache",
+      "ok": true,
+      "reason": "PASS 测试通过，fib(40) 0.2ms",
+      "inputTokens": 50492,
+      "outputTokens": 780,
+      "steps": 7,
+      "ms": 26080,
+      "exitCode": 0
+    },
+    {
+      "id": "04-readme",
+      "ok": true,
+      "reason": "PASS README 1235 字符，三个函数与命令齐备",
+      "inputTokens": 52771,
+      "outputTokens": 1619,
+      "steps": 11,
+      "ms": 41932,
+      "exitCode": 0
+    },
+    {
+      "id": "05-refactor",
+      "ok": true,
+      "reason": "PASS 测试通过，规范化链条 1 处",
+      "inputTokens": 27333,
+      "outputTokens": 1887,
+      "steps": 15,
+      "ms": 57305,
+      "exitCode": 0
+    }
+  ]
+}

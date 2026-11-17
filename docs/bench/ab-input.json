@@ -1,0 +1,38 @@
+{
+  "method": "opencode run --format json，取 step-finish.tokens.input（首轮）",
+  "model": "opencode/deepseek-v4.1-flash-free",
+  "prompt": "只回复两个字：收到",
+  "project": "/tmp/oml-ab/proj",
+  "hostConfig": "真实 ~/.config/opencode/opencode.json：2 个插件 + 4 个 MCP",
+  "measuredAt": "2026-11-14T14:25:00Z",
+  "runs": [
+    {
+      "id": "A",
+      "omo": false,
+      "externalSkills": true,
+      "tokensInput": 43232,
+      "note": "对照组：OML 关闭（plugin/omo.ts 临时改名）"
+    },
+    {
+      "id": "B",
+      "omo": true,
+      "externalSkills": true,
+      "tokensInput": 21452,
+      "note": "实验组：OML 开启"
+    },
+    {
+      "id": "C",
+      "omo": true,
+      "externalSkills": false,
+      "tokensInput": 21452,
+      "note": "OML 开启 + OPENCODE_DISABLE_EXTERNAL_SKILLS=1，与 B 完全相同"
+    },
+    {
+      "id": "D",
+      "omo": false,
+      "externalSkills": false,
+      "tokensInput": 24892,
+      "note": "OML 关闭 + 禁用外部技能：宿主底噪参考"
+    }
+  ]
+}

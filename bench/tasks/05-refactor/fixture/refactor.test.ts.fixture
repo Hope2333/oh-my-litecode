@@ -1,0 +1,19 @@
+import { test, expect } from "bun:test"
+import { normalize, label } from "./src/a.ts"
+import { tidy, keyOf } from "./src/b.ts"
+
+test("normalize 去空白与小写", () => {
+  expect(normalize("  Hello   World!  ")).toBe("hello world")
+})
+
+test("label 把空格变连字符", () => {
+  expect(label("  Hello   World!  ")).toBe("hello-world")
+})
+
+test("tidy 与 normalize 结果一致", () => {
+  expect(tidy("  Hello   World!  ")).toBe("hello world")
+})
+
+test("keyOf 组合两者", () => {
+  expect(keyOf(" A b ")).toBe("a b:a b")
+})

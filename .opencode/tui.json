@@ -1,0 +1,6 @@
+{
+  "plugin": [
+    "opencode-visual-cache",
+    "opencode-subagent-magazine"
+  ]
+}

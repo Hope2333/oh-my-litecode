@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "types": ["bun"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@oml/core": ["./packages/core/src/index.ts"],
+      "@oml/core/*": ["./packages/core/src/*"]
+    }
+  },
+  "include": [
+    "packages/**/*.ts",
+    "OC/**/*.ts",
+    "OC2/**/*.ts",
+    "scripts/**/*.ts",
+    "bench/**/*.ts"
+  ]
+}

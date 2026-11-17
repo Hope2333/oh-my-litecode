@@ -1,0 +1,12 @@
+{
+  "name": "@oml/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "omo": "./src/main.ts"
+  },
+  "dependencies": {
+    "@oml/core": "workspace:*"
+  }
+}

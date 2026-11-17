@@ -1,0 +1,62 @@
+{
+  "label": "omo",
+  "model": "bailing/Ling-3.0-flash",
+  "config": "/tmp/omo-only.json",
+  "at": "2026-11-14T21:46:21.543Z",
+  "passed": 5,
+  "total": 5,
+  "inputTokens": 534573,
+  "avgSteps": 6.6,
+  "tasks": [
+    {
+      "id": "01-ndjson",
+      "ok": true,
+      "reason": "PASS NDJSON 两行且字段正确",
+      "inputTokens": 87718,
+      "outputTokens": 333,
+      "steps": 6,
+      "ms": 29308,
+      "exitCode": 0
+    },
+    {
+      "id": "02-bugfix",
+      "ok": true,
+      "reason": "PASS 测试通过且未改测试",
+      "inputTokens": 179766,
+      "outputTokens": 412,
+      "steps": 5,
+      "ms": 31135,
+      "exitCode": 0
+    },
+    {
+      "id": "03-cache",
+      "ok": true,
+      "reason": "PASS 测试通过，fib(40) 0.2ms",
+      "inputTokens": 92074,
+      "outputTokens": 965,
+      "steps": 10,
+      "ms": 52696,
+      "exitCode": 0
+    },
+    {
+      "id": "04-readme",
+      "ok": true,
+      "reason": "PASS README 1242 字符，三个函数与命令齐备",
+      "inputTokens": 87064,
+      "outputTokens": 752,
+      "steps": 5,
+      "ms": 37001,
+      "exitCode": 0
+    },
+    {
+      "id": "05-refactor",
+      "ok": true,
+      "reason": "PASS 测试通过，规范化链条 1 处",
+      "inputTokens": 87951,
+      "outputTokens": 1231,
+      "steps": 7,
+      "ms": 63186,
+      "exitCode": 0
+    }
+  ]
+}

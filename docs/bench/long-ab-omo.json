@@ -1,0 +1,36 @@
+{
+  "label": "omo",
+  "model": "bailing/Ling-3.0-flash",
+  "killedAtMs": 30000,
+  "stateAfterKill": false,
+  "phase1": {
+    "input": 90074,
+    "output": 621,
+    "steps": 5,
+    "killed": true,
+    "ms": 30058
+  },
+  "phase2": {
+    "input": 94714,
+    "output": 1876,
+    "steps": 10,
+    "ms": 59293
+  },
+  "totalInput": 184788,
+  "ok": true,
+  "verify": "OK 测试通过（? 个 case），行为探针通过",
+  "artifacts": [
+    "package.json (145 B)",
+    ".omo (3 B)",
+    "README.md (663 B)",
+    "src (3 B)",
+    "tests (3 B)",
+    ".test-tmp (4 B)",
+    ".omo/run-continuation (3 B)",
+    "tests/store.test.ts (1554 B)",
+    "src/store.ts (938 B)",
+    ".omo/run-continuation/ses_e23a3066effe5WKpLjz8Fl8u1X.json (214 B)",
+    ".test-tmp/d.json (15 B)",
+    ".test-tmp/c.json (17 B)"
+  ]
+}

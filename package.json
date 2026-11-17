@@ -1,0 +1,28 @@
+{
+  "name": "oml",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/cli",
+    "OC/omo",
+    "OC2/omo"
+  ],
+  "scripts": {
+    "check": "bun run scripts/check.ts",
+    "typecheck": "bun ./node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit",
+    "test": "bun test",
+    "bench:prompt": "bun run bench/prompt.ts",
+    "bench:startup": "bun run bench/startup.ts",
+    "omo": "bun run packages/cli/src/main.ts",
+    "bench:host": "bun bench/host.ts",
+    "bench:parity": "bun bench/parity.ts",
+    "manifest": "bun scripts/manifest.ts"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.0",
+    "@types/bun": "latest",
+    "@opencode-ai/plugin": "^1.14.19"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "label": "oml",
+  "model": "bailing/Ling-3.0-flash",
+  "killedAtMs": 12000,
+  "stateAfterKill": true,
+  "phase1": {
+    "input": 47259,
+    "output": 194,
+    "steps": 3,
+    "killed": true,
+    "ms": 12062
+  },
+  "phase2": {
+    "input": 24162,
+    "output": 2491,
+    "steps": 13,
+    "ms": 39782
+  },
+  "totalInput": 71421,
+  "ok": false,
+  "verify": "FAIL 行为探针未通过\n 5 | if (s.get(\"a\") !== \"1\") throw new Error(\"set/get 不一致\")\n 6 | if (s.del(\"b\") !== false) throw new Error(\"del(不存在的键) 应为 false\")\n 7 | s.save()\n 8 | const s2 = createStore(\"/tmp/oml-store-OjVrwd/db.json\")\n 9 | s2.load()\n10 | if (s2.get(\"a\") !== \"1\") throw new Error(\"重开后数据丢失\")\n                                        ^\nerror: 重开后数据丢失\n      at /home/miao/Projects/OML/[eval]:10:36\n\nBun v1",
+  "artifacts": [
+    "README.md (663 B)",
+    ".oml-state (3 B)",
+    "src (3 B)",
+    "tests (3 B)",
+    ".oml-state/checkpoints (4 B)",
+    "tests/store.test.ts (1932 B)",
+    "src/store.ts (1117 B)",
+    ".oml-state/checkpoints/2026-11-14T23-16-25-251Z.json (1239 B)",
+    ".oml-state/checkpoints/2026-11-14T23-16-37-296Z.json (1414 B)"
+  ]
+}

@@ -1,0 +1,10 @@
+import { test, expect } from "bun:test"
+import { sum } from "./src/sum.ts"
+
+test("sum(5) = 15", () => {
+  expect(sum(5)).toBe(15)
+})
+
+test("sum(1) = 1", () => {
+  expect(sum(1)).toBe(1)
+})
