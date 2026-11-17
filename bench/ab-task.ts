@@ -9,6 +9,12 @@
  *   bun bench/ab-task.ts --label oml
  *   bun bench/ab-task.ts --label omo --config /tmp/omo-only.json
  *   bun bench/ab-task.ts --label oml --only 02-bugfix,03-cache
+ *   bun bench/ab-task.ts --label oml-r5 --repeat 5                 # 5 任务各跑 5 轮
+ *   bun bench/ab-task.ts --label oml-r5 --repeat 5 --seed 20261118  # 注入 seed 标记
+ *
+ * --repeat N：外层对 picked 任务重复 N 轮，每轮用全新 mkdtemp 工作目录（互不复用），
+ *   每条样本带 run 序号与 seed。seed 只作运行标记写入结果，**不改 prompt**（保持 A/B 单变量）；
+ *   本地网关不提供确定性采样，各轮样本彼此独立。
  */
 import { cp, mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
@@ -108,7 +114,25 @@ const configPath = arg("config")
 const only = arg("only")?.split(",").map((s) => s.trim())
 const outPath = arg("out") ?? join(ROOT, "docs/bench", `task-ab-${label}.json`)
 
+const repeatRaw = arg("repeat") ?? "1"
+const repeat = Number(repeatRaw)
+if (!Number.isInteger(repeat) || repeat < 1) {
+  console.error(`--repeat 必须是 >=1 的整数，收到: ${repeatRaw}`)
+  process.exit(1)
+}
+// seed 默认固定值以便报告可复现；可通过 --seed 注入任意整数。
+const seedRaw = arg("seed") ?? "20261118"
+const seed = Number(seedRaw)
+if (!Number.isFinite(seed)) {
+  console.error(`--seed 必须是数字，收到: ${seedRaw}`)
+  process.exit(1)
+}
+
 interface Result {
+  /** 重复轮序号，1..repeat */
+  readonly run: number
+  /** 注入的运行标记（见文首说明，不改 prompt） */
+  readonly seed: number
   readonly id: string
   readonly ok: boolean
   readonly reason: string
@@ -122,57 +146,63 @@ interface Result {
 const picked = only === undefined ? TASKS : TASKS.filter((t) => only.includes(t.id))
 const results: Result[] = []
 
-for (const task of picked) {
-  const work = await mkdtemp(join(tmpdir(), `oml-${task.id}-`))
-  try {
-    await cp(task.fixture, work, { recursive: true })
-    // fixture 里的测试文件以 `.fixture` 结尾存放：否则仓库根目录的 `bun test` 会
-    // 扫到这些**故意失败**的样例，把 OML 自己的门禁搞红。
-    const copyGlob = new Bun.Glob("**/*.ts.fixture")
-    for await (const rel of copyGlob.scan({ cwd: work })) {
-      await Bun.write(join(work, rel.replace(/\.fixture$/, "")), await Bun.file(join(work, rel)).text())
-      await rm(join(work, rel))
-    }
-    // 必须带 --print-logs：不带时 opencode 在无 TTY 环境下会静默 exit 1（实测三次）。
-    const argv = ["opencode", "run", "--format", "json", "--print-logs", "--model", model, "--agent", "sisyphus", "--dir", work, task.prompt]
-    const started = performance.now()
-    const proc = Bun.spawnSync(argv, {
-      cwd: work,
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: task.timeout,
-      // 只在需要换配置时显式传 env：显式传 process.env 反而会让子进程拿不到 TTY 相关变量，
-      // opencode 会静默 exit 1（实测）。
-      ...(configPath === undefined ? {} : { env: { ...process.env, OPENCODE_CONFIG: configPath } }),
-    })
-    const ms = performance.now() - started
-    const stdout = proc.stdout.toString()
-    if (process.env["OML_AB_DEBUG"] === "1") {
-      await Bun.write(`/tmp/ab-debug-${task.id}.out`, stdout)
-      await Bun.write(`/tmp/ab-debug-${task.id}.err`, proc.stderr.toString())
-    }
-    const counts = parseSteps(stdout)
+for (let run = 1; run <= repeat; run++) {
+  console.log(`\n=== run ${run}/${repeat} (label=${label}, seed=${seed}) ===`)
+  for (const task of picked) {
+    // 每轮每个任务都新建隔离工作目录，绝不复用，避免上一轮的产物污染样本。
+    const work = await mkdtemp(join(tmpdir(), `oml-${task.id}-r${run}-`))
+    try {
+      await cp(task.fixture, work, { recursive: true })
+      // fixture 里的测试文件以 `.fixture` 结尾存放：否则仓库根目录的 `bun test` 会
+      // 扫到这些**故意失败**的样例，把 OML 自己的门禁搞红。
+      const copyGlob = new Bun.Glob("**/*.ts.fixture")
+      for await (const rel of copyGlob.scan({ cwd: work })) {
+        await Bun.write(join(work, rel.replace(/\.fixture$/, "")), await Bun.file(join(work, rel)).text())
+        await rm(join(work, rel))
+      }
+      // 必须带 --print-logs：不带时 opencode 在无 TTY 环境下会静默 exit 1（实测三次）。
+      const argv = ["opencode", "run", "--format", "json", "--print-logs", "--model", model, "--agent", "sisyphus", "--dir", work, task.prompt]
+      const started = performance.now()
+      const proc = Bun.spawnSync(argv, {
+        cwd: work,
+        stdout: "pipe",
+        stderr: "pipe",
+        timeout: task.timeout,
+        // 只在需要换配置时显式传 env：显式传 process.env 反而会让子进程拿不到 TTY 相关变量，
+        // opencode 会静默 exit 1（实测）。
+        ...(configPath === undefined ? {} : { env: { ...process.env, OPENCODE_CONFIG: configPath } }),
+      })
+      const ms = performance.now() - started
+      const stdout = proc.stdout.toString()
+      if (process.env["OML_AB_DEBUG"] === "1") {
+        await Bun.write(`/tmp/ab-debug-${task.id}-r${run}.out`, stdout)
+        await Bun.write(`/tmp/ab-debug-${task.id}-r${run}.err`, proc.stderr.toString())
+      }
+      const counts = parseSteps(stdout)
 
-    const verify = Bun.spawnSync(["bun", task.verify, work], { stdout: "pipe", stderr: "pipe", timeout: 120_000 })
-    const verdict = verify.stdout.toString().trim()
-    const ok = verify.exitCode === 0 && verdict.startsWith("PASS")
+      const verify = Bun.spawnSync(["bun", task.verify, work], { stdout: "pipe", stderr: "pipe", timeout: 120_000 })
+      const verdict = verify.stdout.toString().trim()
+      const ok = verify.exitCode === 0 && verdict.startsWith("PASS")
 
-    results.push({
-      id: task.id,
-      ok,
-      reason: verdict === "" ? proc.stderr.toString().slice(-200) : verdict.slice(0, 300),
-      inputTokens: counts.input,
-      outputTokens: counts.output,
-      steps: counts.steps,
-      ms: Math.round(ms),
-      exitCode: proc.exitCode,
-    })
-    console.log(`${ok ? "✓" : "✗"} ${task.id}  in=${counts.input} out=${counts.output} steps=${counts.steps} ${Math.round(ms)}ms`)
-    if (!ok) console.log(`   run stderr: ${proc.stderr.toString().split("\n").filter((l) => l.includes("ERROR") || l.includes("error")).slice(-2).join(" | ").slice(-400)}`)
-    if (!ok) console.log(`   ${verdict.slice(0, 200)}`)
-  } finally {
-    if (process.env["OML_AB_KEEP"] === "1") console.log(`   workdir: ${work}`)
-    else await rm(work, { recursive: true, force: true })
+      results.push({
+        run,
+        seed,
+        id: task.id,
+        ok,
+        reason: verdict === "" ? proc.stderr.toString().slice(-200) : verdict.slice(0, 300),
+        inputTokens: counts.input,
+        outputTokens: counts.output,
+        steps: counts.steps,
+        ms: Math.round(ms),
+        exitCode: proc.exitCode,
+      })
+      console.log(`  ${ok ? "✓" : "✗"} ${task.id}  in=${counts.input} out=${counts.output} steps=${counts.steps} ${Math.round(ms)}ms`)
+      if (!ok) console.log(`     run stderr: ${proc.stderr.toString().split("\n").filter((l) => l.includes("ERROR") || l.includes("error")).slice(-2).join(" | ").slice(-400)}`)
+      if (!ok) console.log(`     ${verdict.slice(0, 200)}`)
+    } finally {
+      if (process.env["OML_AB_KEEP"] === "1") console.log(`     workdir: ${work}`)
+      else await rm(work, { recursive: true, force: true })
+    }
   }
 }
 
@@ -182,6 +212,8 @@ const summary = {
   label,
   model,
   config: configPath ?? null,
+  repeat,
+  seed,
   at: new Date().toISOString(),
   passed,
   total: results.length,
@@ -194,4 +226,5 @@ await mkdir(dirname(outPath), { recursive: true })
 await Bun.write(outPath, `${JSON.stringify(summary, null, 2)}\n`)
 
 console.log(`\n${label}: ${passed}/${results.length} 通过 | 总输入 ${totalIn} tok | 平均 ${summary.avgSteps} 步`)
+console.log(`重复 ${repeat} 轮 × ${picked.length} 任务 | seed=${seed} | 样本数 ${results.length}`)
 console.log(`写入 ${outPath}`)
