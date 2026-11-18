@@ -23,6 +23,7 @@
 | 内核纯模块（无副作用） | 不设上限 | 新增 `capabilities/manifest.ts`（+`manifest.test.ts`）；`contract.ts`/`prompt/build.ts`/`config/{schema,index}.ts` 各接线 | 2026-11-18 记账：常驻能力目录 section（248 tok），把 8 项能力「什么场景→怎么调」常驻在唯一装配点，场景判断交还模型，解决「能力放着不用成摆设」；替代/并存关系：现有正则 hint（`eigenflux/hint.ts`、`context7-hint.ts`）降级为命中时补一句的强化层，未删除。`config.capabilities`（enabled/mode/disabled）可关可精简。零新 tool/action/hook/运行时依赖；SectionId 加一值（预算门实测 3258/8192 pass），不占任何受控类别，按 A10 书面记账 |
 
 | 内置技能（纯文档/脚本，无运行时成本） | 不设上限 | 新增 `OC/omo/skills/neko-pty/`（SKILL.md + pty.sh） | 2026-11-18 记账：PTY/交互式 TUI 验证规范 + tmux 助手脚本（把每次手搓 tmux 的踩坑固化为可复用流程：TERM/leader 两段式/输入行清空/OC1 vs OC2 配方/收尾清理）。随 builtinSkills 根自动扫描发现（实测 neko-pty 已被发现）。零 hook / 零 tool / 零 action / 零运行时依赖 / 零 token（技能按需加载，不进常驻提示）；脚本只操作 `oml-` 前缀 tmux 会话、拒杀生产服务器。不占任何受控预算类别，按 A10 书面记账 |
+| 内置技能（按需骨架，无运行时成本） | 不设上限 | 新增 `OC/omo/skills/neko-video-distill/SKILL.md` + `OC/omo/skills/neko-reverse/SKILL.md` | 2026-11-18 记账（工程哲学第三批）：视频蒸馏（仓颉类）与逆向（REA/Craft 类）两个**按需专业骨架**——只给工作流与发现指引（omo_knowledge/suggestMcp/查缺口报 owner），明确标注外部模型/工具未内置、未验证、需 owner 授权才装，不假装可用。随 builtinSkills 根自动扫描发现（实测两技能均被发现、frontmatter 解析正确）。零 hook / 零 tool / 零 action / 零运行时依赖 / 零 token（按需加载）。不占任何受控预算类别，按 A10 书面记账 |
 
 ## 当前实测（2026-11-13）
 

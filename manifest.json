@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-18T21:58:21.162Z",
+  "generatedAt": "2026-11-18T22:01:42.994Z",
   "files": {
     ".gitignore": "0b25d6d29fe015c9",
     ".opencode/.gitignore": "663a068e76d264d0",
@@ -7,7 +7,7 @@
     ".opencode/package-lock.json": "c6589bfd6b7f8ca7",
     ".opencode/package.json": "c87a5df27ef88aff",
     ".opencode/tui.json": "bd6bc9722b57a357",
-    "BUDGET.md": "048280cc504ee4c6",
+    "BUDGET.md": "739da9b767735af3",
     "MODULES.md": "be5b6e2cb4f8c25c",
     "OC/omo/README.md": "553c262641510307",
     "OC/omo/package.json": "adfe1e993ced706a",
@@ -17,7 +17,9 @@
     "OC/omo/skills/neko-prometheus/SKILL.md": "3466524c39f196c1",
     "OC/omo/skills/neko-pty/SKILL.md": "2c80fc8a4b06b9ad",
     "OC/omo/skills/neko-pty/pty.sh": "f257739579d568cb",
+    "OC/omo/skills/neko-reverse/SKILL.md": "c198dec4405369da",
     "OC/omo/skills/neko-ultraworker/SKILL.md": "92df0dc0194b3f60",
+    "OC/omo/skills/neko-video-distill/SKILL.md": "e3bda505bb18eff6",
     "OC/omo/src/channel-tool.test.ts": "963eccee40eb884e",
     "OC/omo/src/client.ts": "c79fab1cd3107332",
     "OC/omo/src/host.test.ts": "cefc9ddb5cf38af7",
