@@ -17,7 +17,7 @@
 | 启用插件 | 5 | 1（OML 自身） | 宿主现仅 2 个（opencode-notify / superpowers-zh）；其余见 docs/design/plugin-absorption.md |
 | 内核运行时依赖 | 0 | 0 | 只用 node: 内建 + @opencode-ai/plugin 的类型 |
 | 适配层行数（OC） | 300 | host+index 295（全目录含 client/tools/web 共 1804 行） | 300 只约束「入口+宿主装配」，业务逻辑在 client/tools/web 三个职责文件 |
-| 适配层行数（OC2） | 300 | 骨架 | — |
+| 适配层行数（OC2） | 300 | 骨架（V2 真机验证已做，移植未做） | 2.3.0 真机证伪「恒等映射」，V2 需整套 ctx 领域 API 移植，见 README；内核零改动 |
 | 内核纯模块（无副作用） | 不设上限 | 新增 `eigenflux/hint.ts`（+`hint.test.ts`） | 2026-11-17 记账：EigenFlux 主动提示的纯字符串判定 + 测试。零 hook / 零工具 / 零 action 槽位 / 零运行时依赖 / 零常驻 MCP；只在命中任务文本时于预算外追加区出一行，空闲注入 0 tok（实测 budget 3247，未增）。不占任何受控预算类别，按 A10 书面记账 |
 | 内置 MCP def + 证据提示（context7） | 不设上限 | 新增 `mcp/builtins.ts` + `mcp/context7-hint.ts`（+ 各自 `.test.ts`） | 2026-11-18 记账：复刻原版 OMO 的 Context7 为 OML 内置 def（merge 进 `hostMcpDefs()`，宿主 opencode.json 不登记），默认禁用 / needsReview，API key 占位串清洗；纯 hint 函数命中才出、预算外追加区，**prompt 只做证据分级**。零新 tool / 零新 action 槽位 / 零运行时依赖 / 零常驻 MCP（未启用）；空闲注入 0 tok。不占任何受控预算类别，按 A10 书面记账 |
 
@@ -35,4 +35,5 @@ PASS types / tests(177) / budget(2422) / host(889) / surface(4 工具,6 hook) / 
 - YYYY-MM-DD | 新增项 | 等量删除项 / 豁免理由 | 批准人
 - 2026-11-18 | omo_channel 3 action（post/read/list）— 团队横向通信，独立工具非能力走私 | 网关 action 上限 26→29（实测 25→28，保留 +1 余量）；工具数 5→6 仍在 14 以内 | Unit5 记账
 - 2026-11-18 | context7 内置 MCP def + 纯 hint 函数（2 模块 + 2 测试文件） | 零新 tool / 零新 action / 零 hook / 零运行时依赖 / 零常驻 MCP（默认禁用）；命中才于预算外追加区注入，空闲 0 tok | Unit7 记账
+- 2026-11-18 | N=5 重复基准脚本 + 报告 + 3 个数据文件（bench/report.ts、docs/bench/task-ab-repeat.md、task-ab-{oml,omo}-r5.json） | 纯离线测量工具与产物，零运行时依赖 / 零 hook / 零 tool / 零 action / 零注入成本；不进生产提示 | 基准提交记账
 ```

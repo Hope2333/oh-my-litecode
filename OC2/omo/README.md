@@ -1,10 +1,39 @@
 # OC2/omo —— OpenCode 2.x 前线适配层（骨架）
 
-## 现状
+## 现状（2026-11-18 真机更新）
 
-**骨架阶段，未在 OC2 真机验证。** OC2 的插件 API（`@opencode-ai/plugin` 2.x）
-尚未在本机安装，因此本目录**不 import** `@opencode-ai/plugin`，只依赖
-`host.ts` 内定义的结构性最小接口 `Oc2HooksLike`（鸭子类型）。
+**骨架阶段，2.x 真机验证已做：当前插件在 2.x 上加载失败，完整 V2 移植未做。**
+
+真机证据（隔离的 `@opencode/cli` 2.3.0 ELF，生产 1.19.3 未动）：
+- 本目录 `src/index.ts` 的函数导出在 2.3.0 被拒：`Plugin must export a default
+  definition with an id and an effect or setup function`（官方 V1→V2 迁移文档同款报错）。
+- 最小对象导出插件 `{id, effect}` 在同版加载成功 → 修复形状已确认。
+- V2 配置键 `plugin`→`plugins`、本地路径须为目录、hook 改为 `ctx.*.hook/transform`
+  领域方法。这是**整套插件 API 更换**，不是改 hook 键能修的方言差异。
+
+**结论**：本目录在 1.x 语义 + 契约测试下有效；**不能宣称 2.x 可用**。
+`dialect.ts` 旧的「2.x 不存在 / 恒等映射」假设已被真机证伪并标注。
+
+本目录**不 import** `@opencode-ai/plugin`，只依赖 `host.ts` 内定义的
+结构性最小接口 `Oc2HooksLike`（鸭子类型）。
+
+## V2 移植待办（未做，独立任务）
+
+按官方迁移文档 opencode.ai/docs/build/plugins/migrate-v1，V1→V2 映射：
+| V1（当前 host.ts） | V2 目标 |
+|---|---|
+| `default` 导出函数 | `Plugin.define({id:'oml.oc2', setup(ctx)})` 对象 |
+| `return { "experimental.chat.system.transform" }` | `ctx.session.hook("context", …)` 改 `event.system` |
+| `return { "chat.message" }` | `ctx.session.hook("prompt", …)` |
+| `return { tool: {...} }` | `ctx.tool.transform(editor => editor.add(...))` |
+| `return { "permission.ask" }` | `ctx.permission.hook("evaluate", …)` |
+| `return { config }` | `ctx.agent/provider/model/command.transform(...)` |
+| `return { event }` | `ctx.event.subscribe()` |
+| `return { dispose }` | `setup` 返回的 cleanup 函数 |
+
+工作量：host.ts 的 7 hook + 6 tool 全面改写，且本机 node 损坏/npm 不可达，
+`@opencode/plugin` 2.x 依赖装不上、无法真机迭代 → **阻塞待决策**
+（选项：修 node 库 / 联网装依赖 / 暂缓）。内核 `@oml/core` 零改动。
 
 实现遵循 A4（民主集中制）：本目录只做**协议翻译** —— 把 OC2 的 hook 形状
 翻译成内核 `PluginHost`（`packages/core/src/contract.ts`），**不含业务逻辑**。
