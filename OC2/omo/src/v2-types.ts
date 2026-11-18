@@ -1,13 +1,13 @@
 /**
  * OC2（OpenCode 2.x）插件上下文的最小 structural types。
  *
- * 本机装不上 `@opencode/plugin` 2.x（node 损坏 libada.so.3、npm 不可达），
- * 故这里按官方 V1→V2 迁移文档（opencode.ai/docs/build/plugins/migrate-v1）
- * 用鸭子类型自述 V2 domain API。字段**宽松但真实**：真机签名一旦确认，
- * 只需收紧本文件，bridge.ts / client-v2.ts 的翻译逻辑不动（A4 单一写入者）。
- *
- * 所有 V2 调用都是**理论映射**，未真机验证；签名不确定处由调用方抛
- * informative throw，绝不伪装成功。
+ * 真机 2.3.0 证据（docs/bench/oc2-realmachine-2026-11-18.md）确认：
+ *   - setup ctx 没有 `ctx.client`，会话 API 全在 `ctx.session.*`；
+ *   - `session.create/update/prompt/get/list/remove/interrupt` 都是 1 参 RPC 包装，
+ *     返回解码后的 body（无 `{data:}` 外壳，翻译层仍兼容两种形状）；
+ *   - `session.hook` 3 参；没有 `messages/abort/delete`（用 `get/interrupt/remove` 代替）。
+ * 字段保持**宽松**：RPC 方法声明为可选，使仅注册 hook 的 fake ctx（如 bridge.test.ts）
+ * 仍可编译；client-v2.ts 在调用时才校验能力并 informative throw（A4 单一写入者）。
  */
 
 /** V2 tool / event 的通用 part（V1 Part 的宽松超集）。 */
@@ -85,7 +85,11 @@ export interface V2ToolEditor {
   [key: string]: unknown
 }
 
-/** V2 host client 的会话操作（对应 V1 SDK client.session，形状待真机确认）。 */
+/**
+ * 旧版「V1 SDK 风格 client」的会话形状（保留仅为兼容历史 ctx.client 字段类型）。
+ * 真机 2.3.0 的 setup ctx **没有 `ctx.client`**；clientFromContext 已改读 `ctx.session.*`，
+ * 不再依赖本接口。签名未真机核实，故全部可选。
+ */
 export interface V2HostClient {
   session?: {
     create?(input: Record<string, unknown>): Promise<unknown>
@@ -104,10 +108,21 @@ export interface V2ToolDomain {
   transform(editor: (editor: V2ToolEditor) => void | Promise<void>): V2Registration
 }
 export interface V2SessionDomain {
+  /** 真机签名是 3 参 (name, handler, opts)；bridge.ts 用 2 参，故第 3 参可选。 */
   hook(
     name: "prompt" | "context" | "compaction",
     handler: (event: V2HookEvent) => void | Promise<void>,
+    options?: Record<string, unknown>,
   ): V2Registration
+  // 真机确认的 1 参 RPC 包装：内部 zod decode，返回解码 body（Promise<unknown>）。
+  // 声明为可选：仅注册 hook 的 fake ctx 无需提供；能力缺失由 client-v2.ts 调用时抛 informative throw。
+  create?(input: Record<string, unknown>): Promise<unknown>
+  update?(input: Record<string, unknown>): Promise<unknown>
+  prompt?(input: Record<string, unknown>): Promise<unknown>
+  get?(input: Record<string, unknown>): Promise<unknown>
+  list?(input: Record<string, unknown>): Promise<unknown>
+  remove?(input: Record<string, unknown>): Promise<unknown>
+  interrupt?(input: Record<string, unknown>): Promise<unknown>
 }
 export interface V2PermissionDomain {
   hook(

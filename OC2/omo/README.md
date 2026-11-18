@@ -1,16 +1,18 @@
-# OC2/omo —— OpenCode 2.x 前线（V2 理论兼容插件，未真机验证）
+# OC2/omo —— OpenCode 2.x 前线（V2 兼容插件，真机加载已验证）
 
 ## 现状（2026-11-18）
 
-**已按官方 V1→V2 迁移文档把 OC2 前线升级为结构性完整的 V2 插件，覆盖 OC1 全部能力（7 hook + 6 tool）。但 V2 domain 签名无法真机验证，所有 ctx 调用都是理论映射 —— 不能宣称 2.x 可用。**
+**已按官方 V1→V2 迁移文档把 OC2 前线升级为结构性完整的 V2 插件，覆盖 OC1 全部能力（7 hook + 6 tool）。已在隔离的真实 `@opencode/cli` 2.3.0 上验证：插件加载成功、setup 走完、5 个 hook 注册调用全部执行（见 `docs/bench/oc2-realmachine-2026-11-18.md`）。但 TaskClient 的 7 个 session RPC 方法尚未在真实会话中触发（本机模型不可用），仍是按真机 ctx 形状写的映射。**
 
 真机证据（隔离的 `@opencode/cli` 2.3.0 ELF，生产 1.19.3 未动）：
 
 - 旧的函数导出在 2.3.0 被拒：`Plugin must export a default definition with an id and an effect or setup function`。
 - 最小对象导出 `{id, effect}` 在同版加载成功 → **默认导出必须是对象**（现已采用 `{id, setup, server}`）。
-- V2 配置键 `plugin`→`plugins`、本地路径须为目录、hook 改为 `ctx.*.hook/transform` 领域方法。这是整套插件 API 更换，不是改 hook 键能修的方言差异。
+- V2 配置键 `plugin`→`plugins`、**本地插件路径必须是目录**（指向 `.ts` 文件会得到 `configured plugin path must be a directory` 而静默不加载）。
+- hook 改为 `ctx.*.hook/transform` 领域方法。这是整套插件 API 更换，不是改 hook 键能修的方言差异。
+- **真实 setup ctx 没有 `ctx.client`**：原 `clientFromContext` 依赖它导致 setup 抛错、插件加载失败。已改为从 `ctx.session.*`（1 参 RPC 包装：`create/update/prompt/get/list/remove/interrupt`）构建 TaskClient；修复后真机 setup 走完，`tool.transform` + `session.prompt/context/compaction` + `permission.evaluate` 五个注册调用全部执行，返回 cleanup 函数。
 
-本机 node 损坏（`/usr/bin/node` 缺 `libada.so.3`）、npm 不可达，`@opencode/plugin` 2.x 装不上，故新代码**不 import 真实 2.x 类型**，改用 `src/v2-types.ts` 里的本地 structural interface。签名不确定处一律 informative throw（写明「OC2 理论插件：ctx.X 签名待真机确认」），**禁止空 catch / any / ts-ignore**，不伪装成功。
+本机 node 损坏（`/usr/bin/node` 缺 `libada.so.3`）、npm 不可达，`@opencode/plugin` 2.x 装不上，故新代码**不 import 真实 2.x 类型**，改用 `src/v2-types.ts` 里的本地 structural interface。方法缺失或返回形状无法归一时 informative throw，**禁止空 catch / any / ts-ignore**，不伪装成功。
 
 ## 架构（A4 单一写入者 / 纯翻译层）
 
@@ -47,25 +49,32 @@ V1 server(input)                  // 1.18.29+ 双形态兼容，仍返回 V1 Hoo
 | 文件 | 职责 |
 |---|---|
 | `src/v2-types.ts` | V2 domain/session/tool/permission/event/storage 的最小 structural interface；`Plugin.define` 恒等助手；`Oc2Context` |
-| `src/client-v2.ts` | `clientFromContext(ctx): TaskClient`，7 个方法理论映射，签名不确定处 informative throw |
+| `src/client-v2.ts` | `clientFromContext(ctx): TaskClient`，7 方法映射到真机确认的 `ctx.session.*`（create/update/prompt/get/list/remove/interrupt）；方法缺失或形状无法归一才 informative throw |
 | `src/bridge.ts` | `bridgeHooks(ctx, hooks, options?)`：7 hook + 6 tool 注册、形状双向适配、cleanup；导出 `BRIDGE_HOOK_MAP` / `ALL_V2_TOOL_NAMES` |
 | `src/host.ts` | `createOc2Host(raw, options?)`：V1 SDK client → `createOmoHost`；V2 TaskClient → `createHostCore` 直通 |
 | `src/index.ts` | default = `{id:'oml.oc2', setup, server}`；保留具名导出 `createOmoHost` / `createOc2Host` |
 | `src/dialect.ts` | `toV1Input(raw)` 校验 directory/client（OC2-DIFF 探测数据保留） |
-| `src/contract.test.ts` | OC2 default 对象形状 + 两前线工具能力等价 + 具名导出 |
+| `src/contract.test.ts` | OC2 default 对象形状（只导出 default）+ 两前线工具能力等价 |
+| `src/client-v2.test.ts` | 假 ctx.session 覆盖 7 方法映射、两种返回外壳、构造不抛、缺失方法调用才抛 |
 | `src/bridge.test.ts` | fake ctx recorder：6 tool 注册与 `{content}` 归一、system 双向适配、prompt/compaction/evaluate/config 注册、event 订阅与 cleanup |
 | `src/host.test.ts` | 沿用 OC1 的 7 hook + 6 tool + OMO_MARKER 注入 / 技能剥离断言 |
 
-## 未验证清单（真机确认前不可宣称可用）
+## 验证状态
 
+### 真机 2.3.0 已确认（加载探针，见 docs/bench/oc2-realmachine-2026-11-18.md）
+- default 对象导出 `{id,setup,server}` 被正确加载（marker 读到 `id:'oml.oc2'`）。
+- 本地插件路径须为目录（含 package.json + index.ts），指向 .ts 文件静默不加载。
+- setup 走完、返回 cleanup 函数；5 个注册调用真实执行：`tool.transform`、`session.prompt`、`session.context`、`session.compaction`、`permission.evaluate`。
+- 真实 ctx 无 `ctx.client`；`ctx.session.*` 是 1 参 RPC 包装（create/update/prompt/get/list/remove/interrupt，无 messages/abort/delete）。已据此修 clientFromContext。
+
+### 仍未验证（不可宣称可用）
 | 项 | 为什么未验证 / 验证所需 |
 |---|---|
-| V2 domain 方法签名（`ctx.tool.transform` / `ctx.session.hook` / `ctx.permission.hook` / `ctx.agent.transform` / `ctx.event.subscribe`） | 本机装不上 `@opencode/plugin` 2.x；需真机 `.d.ts` 或加载探针 |
-| `ctx.client.session.*` 的请求/返回形状 | 官方文档未给精确签名；`clientFromContext` 对缺失方法/无法归一的返回抛 informative throw |
-| `event.system` 形状 | 计划按 `{type:"text",text}[]` 适配，但真机是否如此未确认；bridge 同时兼容字符串元素 |
+| 7 个 session RPC 的请求/返回形状 | 真机模型不可用（openai/gpt-6.2-sol region error），子会话 create/prompt 未在真实会话中触发；写法兼容 `{data:X}` 与直接 body 两种外壳，须在可用模型上跑一遍 |
+| `event.system` 形状 | 计划按 `{type:"text",text}[]` 适配；bridge 同时兼容字符串元素，待真实会话触发 context hook 确认 |
 | `config` 的 `permission` / `default_agent` | V2 无全局 config 对象，这部分**不映射**，只记 debug；需确认是否有替代 domain |
 | tool schema | V1 zod → V2 JSON Schema 仅还原字段名，字段类型未转换 |
-| cleanup 语义 | domain 注册是否返回 unregister 函数、subscribe 的 signal 是否真正停止流，均待真机 |
+| cleanup 语义 | 真机确认返回 cleanup 函数，但 domain 注册 unregister / subscribe signal 是否真正停止流未触发验证 |
 | `Plugin.define` 运行时身份 | 本地恒等助手；真机应替换为官方实现，调用方零改动 |
 
 ## 验证方式
@@ -73,7 +82,7 @@ V1 server(input)                  // 1.18.29+ 双形态兼容，仍返回 V1 Hoo
 ```bash
 cd /home/miao/Projects/OML
 bun ./node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit   # 必须零报错（/usr/bin/node 损坏，用 bun 跑 tsc）
-bun test OC2/omo/                                                   # 12 pass / 0 fail
+bun test OC2/omo/                                                   # 19 pass / 0 fail
 bun test                                                            # 全量 0 fail
 git status --short                                                  # 确认只碰 OC2/omo/** 与 docs/plan
 ```
