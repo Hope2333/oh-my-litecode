@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------- 系统提示
 
 /** 提示段的身份。顺序即优先级（见 SECTION_PRIORITY）。 */
-export type SectionId = "tools" | "identity" | "skillIndex" | "memory"
+export type SectionId = "tools" | "identity" | "capabilities" | "skillIndex" | "memory"
 
 /** 一段可计量的提示内容。 */
 export interface Section {
@@ -30,6 +30,7 @@ export interface SystemPrompt {
 export const SECTION_PRIORITY: readonly SectionId[] = [
   "tools",
   "identity",
+  "capabilities",
   "skillIndex",
   "memory",
 ] as const

@@ -95,6 +95,15 @@ export interface OmlConfig {
     /** 系统提示 token 上限，默认 8192 */
     limit?: number
   }
+  /** 常驻能力目录：默认注入；关掉后模型看不到能力清单，只能靠命中正则的 hint。 */
+  capabilities?: {
+    /** 默认 true；设 false 则完全不注入能力目录段。 */
+    enabled?: boolean
+    /** full=场景+调法（默认）；compact=短名+调法，每条约半行。 */
+    mode?: "full" | "compact"
+    /** 按能力 id 屏蔽条目，例如 ["eigenflux","context7"]。 */
+    disabled?: string[]
+  }
   /** 特制团队模板：`omo_task action=team team=<名字>` 直接调用。 */
   teams?: Record<string, TeamProfile>
   disabled_agents?: string[]

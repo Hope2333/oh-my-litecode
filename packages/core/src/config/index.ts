@@ -28,6 +28,7 @@ const KNOWN_KEYS = new Set([
   "skills",
   "tasks",
   "budget",
+  "capabilities",
   "disabled_agents",
   "disabled_skills",
   "disabled_tools",
@@ -141,6 +142,29 @@ export function parseConfig(raw: unknown): ParseResult {
         else warnings.push("eigenflux.proactive 必须是布尔值")
       }
       config.eigenflux = eig
+    }
+  }
+
+  if (raw["capabilities"] !== undefined) {
+    if (!isRecord(raw["capabilities"])) {
+      warnings.push("capabilities 必须是对象")
+    } else {
+      const c = raw["capabilities"]
+      const caps: NonNullable<OmlConfig["capabilities"]> = {}
+      if (c["enabled"] !== undefined) {
+        if (typeof c["enabled"] === "boolean") caps.enabled = c["enabled"]
+        else warnings.push("capabilities.enabled 必须是布尔值")
+      }
+      if (c["mode"] !== undefined) {
+        if (c["mode"] === "full" || c["mode"] === "compact") caps.mode = c["mode"]
+        else warnings.push('capabilities.mode 只能是 "full" / "compact"')
+      }
+      if (c["disabled"] !== undefined) {
+        if (Array.isArray(c["disabled"])) {
+          caps.disabled = c["disabled"].filter((x): x is string => typeof x === "string")
+        } else warnings.push("capabilities.disabled 必须是字符串数组")
+      }
+      config.capabilities = caps
     }
   }
 

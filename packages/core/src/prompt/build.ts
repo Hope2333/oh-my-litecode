@@ -4,12 +4,13 @@
  * 扬弃对象：OMO 的 4 个注入器 hook + 57 个 hook 各自往 messages/system 里塞内容。
  * 一处拼装 → 段可计数、可截断、可审计；多处注入 → 谁都不知道最终有多少。
  *
- * 段优先级（高→低）：tools > identity > skillIndex > memory。
+ * 段优先级（高→低）：tools > identity > capabilities > skillIndex > memory。
  * 超预算时从 memory 开始砍（见 budget/assemble.ts）。
  */
 
 import type { SkillMeta, SkillUsageMap, SystemPrompt } from "../contract.ts"
 import { DEFAULT_BUDGET_TOKENS } from "../contract.ts"
+import { buildCapabilityManifest } from "../capabilities/manifest.ts"
 import { CONTEXT_RULES } from "../context/module.ts"
 import { worldviewBlock } from "./worldview.ts"
 import { assemble } from "../budget/assemble.ts"
@@ -113,8 +114,18 @@ export function buildSystemPrompt(input: BuildInput = {}): BuildOutcome {
       ? TOOL_POLICY
       : `${TOOL_POLICY}\n已启用工具：${[...input.toolNames].sort().join(", ")}`
 
+  // 常驻能力目录：默认开启，场景由模型自己判断；整段可关可精简。
+  // 正则 hint（vision/identity/ef/pa/c7）照旧保留，只作「明确命中补一句」的强化。
+  const capCfg = config.capabilities
+  const capabilitiesText =
+    capCfg?.enabled === false
+      ? ""
+      : buildCapabilityManifest({ mode: capCfg?.mode ?? "full", disabled: capCfg?.disabled ?? [] })
+  const capabilitiesItems = capabilitiesText === "" ? 0 : capabilitiesText.split("\n").length - 1
+
   const sections: SystemPrompt["sections"] = [
     { id: "tools", text: toolsText, items: input.toolNames?.length ?? 0 },
+    { id: "capabilities", text: capabilitiesText, items: capabilitiesItems },
     { id: "identity", text: identityParts.join("\n\n"), items: 1 },
     {
       id: "skillIndex",

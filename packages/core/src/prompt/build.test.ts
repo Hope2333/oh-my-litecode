@@ -12,14 +12,29 @@ function skill(i: number): SkillMeta {
 }
 
 describe("buildSystemPrompt", () => {
-  test("默认构建：四段有序，总量在 8192 以内", () => {
+  test("默认构建：五段有序，总量在 8192 以内", () => {
     const out = buildSystemPrompt()
-    expect(out.sections.map((s) => s.id)).toEqual(["tools", "identity", "skillIndex", "memory"])
+    expect(out.sections.map((s) => s.id)).toEqual(["tools", "capabilities", "identity", "skillIndex", "memory"])
     expect(out.report.totalTokens).toBeLessThanOrEqual(8192)
     expect(out.report.budget.status).toBe("pass")
     expect(out.prompt).toContain("## identity")
     expect(out.prompt).toContain("先读后改")
     expect(out.agent.id).toBe("sisyphus")
+  })
+
+  test("能力目录默认注入；enabled=false 时该段为空；compact 更短", () => {
+    const full = buildSystemPrompt({ skills: [] })
+    expect(full.prompt).toContain("## 可用能力")
+    expect(full.sections.find((s) => s.id === "capabilities")?.items).toBeGreaterThanOrEqual(7)
+
+    const off = buildSystemPrompt({ skills: [], config: { capabilities: { enabled: false } } })
+    expect(off.sections.find((s) => s.id === "capabilities")?.text).toBe("")
+    expect(off.sections.find((s) => s.id === "capabilities")?.items).toBe(0)
+    expect(off.prompt).not.toContain("## 可用能力")
+
+    const compact = buildSystemPrompt({ skills: [], config: { capabilities: { mode: "compact" } } })
+    expect(compact.prompt).toContain("## 可用能力")
+    expect(compact.prompt.length).toBeLessThan(full.prompt.length)
   })
 
   test("291 个技能时索引只取 40 条，且总量仍受控", () => {
