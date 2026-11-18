@@ -1,84 +1,81 @@
-# OC2/omo —— OpenCode 2.x 前线适配层（骨架）
+# OC2/omo —— OpenCode 2.x 前线（V2 理论兼容插件，未真机验证）
 
-## 现状（2026-11-18 真机更新）
+## 现状（2026-11-18）
 
-**骨架阶段，2.x 真机验证已做：当前插件在 2.x 上加载失败，完整 V2 移植未做。**
+**已按官方 V1→V2 迁移文档把 OC2 前线升级为结构性完整的 V2 插件，覆盖 OC1 全部能力（7 hook + 6 tool）。但 V2 domain 签名无法真机验证，所有 ctx 调用都是理论映射 —— 不能宣称 2.x 可用。**
 
 真机证据（隔离的 `@opencode/cli` 2.3.0 ELF，生产 1.19.3 未动）：
-- 本目录 `src/index.ts` 的函数导出在 2.3.0 被拒：`Plugin must export a default
-  definition with an id and an effect or setup function`（官方 V1→V2 迁移文档同款报错）。
-- 最小对象导出插件 `{id, effect}` 在同版加载成功 → 修复形状已确认。
-- V2 配置键 `plugin`→`plugins`、本地路径须为目录、hook 改为 `ctx.*.hook/transform`
-  领域方法。这是**整套插件 API 更换**，不是改 hook 键能修的方言差异。
 
-**结论**：本目录在 1.x 语义 + 契约测试下有效；**不能宣称 2.x 可用**。
-`dialect.ts` 旧的「2.x 不存在 / 恒等映射」假设已被真机证伪并标注。
+- 旧的函数导出在 2.3.0 被拒：`Plugin must export a default definition with an id and an effect or setup function`。
+- 最小对象导出 `{id, effect}` 在同版加载成功 → **默认导出必须是对象**（现已采用 `{id, setup, server}`）。
+- V2 配置键 `plugin`→`plugins`、本地路径须为目录、hook 改为 `ctx.*.hook/transform` 领域方法。这是整套插件 API 更换，不是改 hook 键能修的方言差异。
 
-本目录**不 import** `@opencode-ai/plugin`，只依赖 `host.ts` 内定义的
-结构性最小接口 `Oc2HooksLike`（鸭子类型）。
+本机 node 损坏（`/usr/bin/node` 缺 `libada.so.3`）、npm 不可达，`@opencode/plugin` 2.x 装不上，故新代码**不 import 真实 2.x 类型**，改用 `src/v2-types.ts` 里的本地 structural interface。签名不确定处一律 informative throw（写明「OC2 理论插件：ctx.X 签名待真机确认」），**禁止空 catch / any / ts-ignore**，不伪装成功。
 
-## V2 移植待办（未做，独立任务）
+## 架构（A4 单一写入者 / 纯翻译层）
 
-按官方迁移文档 opencode.ai/docs/build/plugins/migrate-v1，V1→V2 映射：
-| V1（当前 host.ts） | V2 目标 |
-|---|---|
-| `default` 导出函数 | `Plugin.define({id:'oml.oc2', setup(ctx)})` 对象 |
-| `return { "experimental.chat.system.transform" }` | `ctx.session.hook("context", …)` 改 `event.system` |
-| `return { "chat.message" }` | `ctx.session.hook("prompt", …)` |
-| `return { tool: {...} }` | `ctx.tool.transform(editor => editor.add(...))` |
-| `return { "permission.ask" }` | `ctx.permission.hook("evaluate", …)` |
-| `return { config }` | `ctx.agent/provider/model/command.transform(...)` |
-| `return { event }` | `ctx.event.subscribe()` |
-| `return { dispose }` | `setup` 返回的 cleanup 函数 |
+业务逻辑只在 OC1 的 `createHostCore`（`/OC/omo/src/host.ts`），OC2 不含任何 OML 业务逻辑：
 
-工作量：host.ts 的 7 hook + 6 tool 全面改写，且本机 node 损坏/npm 不可达，
-`@opencode/plugin` 2.x 依赖装不上、无法真机迭代 → **阻塞待决策**
-（选项：修 node 库 / 联网装依赖 / 暂缓）。内核 `@oml/core` 零改动。
+```
+V2 setup(ctx)
+  └─ clientFromContext(ctx)       // ctx.client.session.* → OC1 的 TaskClient（理论映射）
+  └─ createOc2Host({directory, client})
+       └─ client 已是 TaskClient → createHostCore(...)（避免 sdkTaskClient 二次包装）
+       └─ V1 server() 路径        → createOmoHost(...)（SDK client 正常包装）
+  └─ bridgeHooks(ctx, hooks)      // 7 hook + 6 tool 注册到 V2 domain + 形状双向适配
+V1 server(input)                  // 1.18.29+ 双形态兼容，仍返回 V1 Hooks
+```
 
-实现遵循 A4（民主集中制）：本目录只做**协议翻译** —— 把 OC2 的 hook 形状
-翻译成内核 `PluginHost`（`packages/core/src/contract.ts`），**不含业务逻辑**。
-预算 / 技能索引 / 编排全在 `@oml/core`。代码量目标 ≤300 行（`host.ts` +
-`index.ts`）。
+## 官方 V1→V2 映射表（已实现，均为理论映射）
+
+| V1（OC1 Hooks） | V2 注册位（bridge.ts） | 形状适配 / 备注 |
+|---|---|---|
+| `default` 导出函数 | `Plugin.define({id:'oml.oc2', setup(ctx)})` 对象 + `server()` | 对象形态真机 2.3.0 已确认；`server()` 为 V1 兼容 |
+| `tool`（6 个 OML 工具） | `ctx.tool.transform(editor => editor.add({name, description, input, execute}))` | V1 zod args → JSON Schema（仅字段名，类型待确认）；execute 返回 `string`/`{output}` → `{content:string}` |
+| `chat.message` | `ctx.session.hook("prompt", …)` | V2 event 的 sessionID/messageID/agent/model/variant/parts → V1 `(input, output)` |
+| `experimental.chat.system.transform` | `ctx.session.hook("context", …)` | **双向适配**：V2 `event.system` = `{type:"text",text}[]` → V1 `string[]` → 调 V1 hook（注入 OMO_MARKER、剥离宿主技能目录）→ 结果写回对象数组 |
+| `experimental.session.compacting` | `ctx.session.hook("compaction", …)` | `event.context` 对象数组 ↔ `string[]`，写回保持输入形状 |
+| `permission.ask` | `ctx.permission.hook("evaluate", …)` | V1 改 `output.status` → V2 改 `event.status` |
+| `event` | `ctx.event.subscribe({signal})` 异步迭代 | V2 event → V1 `{event}`；cleanup = `AbortController.abort()` |
+| `config` | `ctx.agent.transform(…)`（尽力） | **config 的 `permission` / `default_agent` 部分 V2 无对应全局对象，理论映射**：仅消费 agent 部分，其余只记 `console.debug`，不抛不伪装 |
+| `dispose` | `setup` 返回的合并 cleanup 函数 | 各 domain 注册返回的 cleanup + event abort 合并 |
+
+6 个工具名（权威集合见 `ALL_V2_TOOL_NAMES`）：`omo_task`、`omo_knowledge`、`omo_admin`、`omo_mcp`、`omo_channel`、`skill`。
 
 ## 文件
 
 | 文件 | 职责 |
 |---|---|
-| `src/host.ts` | `Oc2HooksLike` 结构接口 + `createOmoHost(hooks): PluginHost` |
-| `src/index.ts` | 导出与 OC 前线同名同形的 `OmoPlugin`、`createOmoHost` |
-| `src/contract.test.ts` | 断言 OC 与 OC2 两前线导出面一致 |
+| `src/v2-types.ts` | V2 domain/session/tool/permission/event/storage 的最小 structural interface；`Plugin.define` 恒等助手；`Oc2Context` |
+| `src/client-v2.ts` | `clientFromContext(ctx): TaskClient`，7 个方法理论映射，签名不确定处 informative throw |
+| `src/bridge.ts` | `bridgeHooks(ctx, hooks, options?)`：7 hook + 6 tool 注册、形状双向适配、cleanup；导出 `BRIDGE_HOOK_MAP` / `ALL_V2_TOOL_NAMES` |
+| `src/host.ts` | `createOc2Host(raw, options?)`：V1 SDK client → `createOmoHost`；V2 TaskClient → `createHostCore` 直通 |
+| `src/index.ts` | default = `{id:'oml.oc2', setup, server}`；保留具名导出 `createOmoHost` / `createOc2Host` |
+| `src/dialect.ts` | `toV1Input(raw)` 校验 directory/client（OC2-DIFF 探测数据保留） |
+| `src/contract.test.ts` | OC2 default 对象形状 + 两前线工具能力等价 + 具名导出 |
+| `src/bridge.test.ts` | fake ctx recorder：6 tool 注册与 `{content}` 归一、system 双向适配、prompt/compaction/evaluate/config 注册、event 订阅与 cleanup |
+| `src/host.test.ts` | 沿用 OC1 的 7 hook + 6 tool + OMO_MARKER 注入 / 技能剥离断言 |
 
-## 已知 / 预期差异点（OC1 → OC2）
+## 未验证清单（真机确认前不可宣称可用）
 
-详见 `src/host.ts` 头部 `// OC2-DIFF:` 注释。摘要：
-
-1. **hook 键名**：`experimental.chat.system.transform` 可能去掉
-   `experimental.` 前缀 → 验证：真机 dump hook 键集合。
-2. **system 载荷**：`output.system` 可能由 `string[]` 改为 `string`
-   → 验证：真机打印 `typeof output.system`。
-3. **tool 注册**：`hooks.tool` 映射可能改为命令式 `registerTool()`
-   → 验证：查 OC2 的 `Hooks` / `Plugin` 类型是否仍有 `tool?` 字段。
-4. **Plugin 入口签名**：`PluginInput` 字段可能变化
-   → 验证：读 OC2 发布的 `Plugin` / `PluginInput` 定义。
+| 项 | 为什么未验证 / 验证所需 |
+|---|---|
+| V2 domain 方法签名（`ctx.tool.transform` / `ctx.session.hook` / `ctx.permission.hook` / `ctx.agent.transform` / `ctx.event.subscribe`） | 本机装不上 `@opencode/plugin` 2.x；需真机 `.d.ts` 或加载探针 |
+| `ctx.client.session.*` 的请求/返回形状 | 官方文档未给精确签名；`clientFromContext` 对缺失方法/无法归一的返回抛 informative throw |
+| `event.system` 形状 | 计划按 `{type:"text",text}[]` 适配，但真机是否如此未确认；bridge 同时兼容字符串元素 |
+| `config` 的 `permission` / `default_agent` | V2 无全局 config 对象，这部分**不映射**，只记 debug；需确认是否有替代 domain |
+| tool schema | V1 zod → V2 JSON Schema 仅还原字段名，字段类型未转换 |
+| cleanup 语义 | domain 注册是否返回 unregister 函数、subscribe 的 signal 是否真正停止流，均待真机 |
+| `Plugin.define` 运行时身份 | 本地恒等助手；真机应替换为官方实现，调用方零改动 |
 
 ## 验证方式
 
 ```bash
 cd /home/miao/Projects/OML
-bun test OC2/omo                                    # 契约测试
-bun ./node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit   # 零报错
+bun ./node_modules/typescript/lib/tsc.js -p tsconfig.json --noEmit   # 必须零报错（/usr/bin/node 损坏，用 bun 跑 tsc）
+bun test OC2/omo/                                                   # 12 pass / 0 fail
+bun test                                                            # 全量 0 fail
+git status --short                                                  # 确认只碰 OC2/omo/** 与 docs/plan
 ```
 
-- 契约测试：`OC/omo` 未实现时 `test.skip` 并打印原因，不 fail。
-- OC2 发布后：按 `OC2-DIFF` 逐条在真机核实，把 `Oc2HooksLike` 收紧为
-  真实类型、把占位实现替换为真实映射，内核零改动。
-
-## 未验证假设
-
-| 假设 | 验证所需 |
-|---|---|
-| OC2 仍有 `event` / `chat.message` / system-transform hook | OC2 真机 + 官方 `.d.ts` |
-| `chat.message` 的 `output.parts` 含可写 `text` 段 | 真机触发并回填 |
-| `hooks.tool[name].execute` 的返回/异常约定 | OC2 工具定义文档 |
-| OC2 是否暴露 agent 注册通道（config 回调？） | OC2 `config` hook 形状 |
-| 技能目录根由宿主提供还是 config | OC2 文件系统 API |
+契约测试：OC 前线未实现时相关断言 skip 并打印原因，不 fail。真机可用后按「未验证清单」逐条收紧 `v2-types.ts`、把 informative throw 替换为真实映射，内核 `@oml/core` 与 OC1 生产路径零改动。

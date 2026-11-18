@@ -105,10 +105,19 @@ async function measureSurface(): Promise<Surface> {
 
     const oc = await import("../OC/omo/src/index.ts")
     const oc2 = await import("../OC2/omo/src/index.ts")
-    // 真机约束：运行时只能导出 default 一个函数，多导出常量会让加载器丢弃插件。
-    const onlyDefault = (m: Record<string, unknown>): boolean =>
-      Object.keys(m).length === 1 && typeof m["default"] === "function"
-    return { tools: toolNames.length, hookKeys: hookNames.length, actions: ACTION_TOTAL, parity: onlyDefault(oc) && onlyDefault(oc2), toolNames, hookNames }
+    // OC1（生产）：V1 真机约束——运行时只导出 default 一个函数，多导出常量会被加载器丢弃。
+    const ocOnlyDefault =
+      Object.keys(oc).length === 1 && typeof (oc as Record<string, unknown>)["default"] === "function"
+    // OC2（V2 理论插件）：官方 V1→V2 迁移后 default 是定义对象 {id, setup, server}，
+    // 不再是函数（函数导出在 2.3.0 真机被拒，见 dialect.ts DIFF-6）。
+    const d = (oc2 as Record<string, unknown>)["default"] as Record<string, unknown> | undefined
+    const oc2V2Definition =
+      Object.keys(oc2).length === 1 &&
+      d !== undefined &&
+      d["id"] === "oml.oc2" &&
+      typeof d["setup"] === "function" &&
+      typeof d["server"] === "function"
+    return { tools: toolNames.length, hookKeys: hookNames.length, actions: ACTION_TOTAL, parity: ocOnlyDefault && oc2V2Definition, toolNames, hookNames }
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
