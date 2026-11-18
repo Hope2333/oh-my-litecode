@@ -22,6 +22,8 @@
 | 内置 MCP def + 证据提示（context7） | 不设上限 | 新增 `mcp/builtins.ts` + `mcp/context7-hint.ts`（+ 各自 `.test.ts`） | 2026-11-18 记账：复刻原版 OMO 的 Context7 为 OML 内置 def（merge 进 `hostMcpDefs()`，宿主 opencode.json 不登记），默认禁用 / needsReview，API key 占位串清洗；纯 hint 函数命中才出、预算外追加区，**prompt 只做证据分级**。零新 tool / 零新 action 槽位 / 零运行时依赖 / 零常驻 MCP（未启用）；空闲注入 0 tok。不占任何受控预算类别，按 A10 书面记账。2026-11-18 真机验证：POST https://mcp.context7.com/mcp 握手成功（serverInfo Context7 v4.7.3，protocol 2024-11-05），tools/list 返回 resolve-library-id + query-docs；无需 key、无需代理（直连 http=405 为 GET 预期，POST 正常） |
 | 内核纯模块（无副作用） | 不设上限 | 新增 `capabilities/manifest.ts`（+`manifest.test.ts`）；`contract.ts`/`prompt/build.ts`/`config/{schema,index}.ts` 各接线 | 2026-11-18 记账：常驻能力目录 section（248 tok），把 8 项能力「什么场景→怎么调」常驻在唯一装配点，场景判断交还模型，解决「能力放着不用成摆设」；替代/并存关系：现有正则 hint（`eigenflux/hint.ts`、`context7-hint.ts`）降级为命中时补一句的强化层，未删除。`config.capabilities`（enabled/mode/disabled）可关可精简。零新 tool/action/hook/运行时依赖；SectionId 加一值（预算门实测 3258/8192 pass），不占任何受控类别，按 A10 书面记账 |
 
+| 内置技能（纯文档/脚本，无运行时成本） | 不设上限 | 新增 `OC/omo/skills/neko-pty/`（SKILL.md + pty.sh） | 2026-11-18 记账：PTY/交互式 TUI 验证规范 + tmux 助手脚本（把每次手搓 tmux 的踩坑固化为可复用流程：TERM/leader 两段式/输入行清空/OC1 vs OC2 配方/收尾清理）。随 builtinSkills 根自动扫描发现（实测 neko-pty 已被发现）。零 hook / 零 tool / 零 action / 零运行时依赖 / 零 token（技能按需加载，不进常驻提示）；脚本只操作 `oml-` 前缀 tmux 会话、拒杀生产服务器。不占任何受控预算类别，按 A10 书面记账 |
+
 ## 当前实测（2026-11-13）
 
 ```
