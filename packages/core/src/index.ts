@@ -19,6 +19,8 @@ export * from "./context/module.ts"
 export * from "./memory/store.ts"
 export * from "./memory/dreams.ts"
 export * from "./compress/store.ts"
+export * from "./compress/tool-result.ts"
+export * from "./tokenfold/fold.ts"
 export * from "./review/slop.ts"
 
 export * from "./acp.ts"

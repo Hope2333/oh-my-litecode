@@ -19,6 +19,9 @@ describe("buildSystemPrompt", () => {
     expect(out.report.budget.status).toBe("pass")
     expect(out.prompt).toContain("## identity")
     expect(out.prompt).toContain("先读后改")
+    // 纪律层命名化：轻档也带 KISS/YAGNI + 完成度检查自查问句
+    expect(out.prompt).toContain("KISS/YAGNI")
+    expect(out.prompt).toContain("完成度检查")
     expect(out.agent.id).toBe("sisyphus")
   })
 
@@ -156,11 +159,14 @@ describe("世界观层与轻约束", () => {
     expect(out.prompt).toContain("## 工作纪律（轻）")
   })
 
-  test("worldview=off 时不注入；constraints=standard 时回到八条", () => {
+  test("worldview=off 时不注入；constraints=standard 时回到完整工作纪律", () => {
     const off = buildSystemPrompt({ agentId: "sisyphus", skills: [], config: { worldview: "off", constraints: "standard" } })
     expect(off.prompt).not.toContain("## 世界观")
     expect(off.prompt).toContain("## 工作纪律")
     expect(off.prompt).not.toContain("## 工作纪律（轻）")
+    // full 档纪律也带命名化自查问句
+    expect(off.prompt).toContain("KISS/YAGNI")
+    expect(off.prompt).toContain("完成度检查")
   })
 
   test("full 档多出阶段论/统一战线/判断权三条", () => {

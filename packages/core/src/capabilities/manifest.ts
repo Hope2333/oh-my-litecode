@@ -30,6 +30,8 @@ export const CAPABILITIES: readonly CapabilityDescriptor[] = [
   { id: "team", scene: "多层/并行任务组队", how: "omo_task（kind=team）派组；omo_channel 横向通信" },
   { id: "pa", scene: "删/改他人会话", how: "omo_admin action=pa op=request 先取授权" },
   { id: "compress", scene: "上下文到 85%/检查点", how: "omo_admin action=checkpoint 落盘；compress 压缩已消费区间" },
+  { id: "fold", scene: "大表格/接口返回/日志冗余", how: "omo_admin action=compress op=fold 无损折叠；op=budget 查预算帽；op=redact 本地打码" },
+  { id: "toolchunk", scene: "单条工具返回过大", how: "omo_admin action=compress op=tool-fold 分块；op=tool-expand 按 @bN 展开" },
   { id: "skill", scene: "技能详情", how: "skill(name) 直载正文" },
 ] as const
 

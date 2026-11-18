@@ -55,6 +55,15 @@ import {
   decompressSource,
   listBlocks,
   totalSavedTokens,
+  foldToolResult,
+  expandAnchor,
+  renderToolResultRef,
+  foldRecords,
+  unfoldRecords,
+  foldSavings,
+  checkBudget as checkFoldBudget,
+  redactSecrets,
+  restoreSecrets,
   forgetMemory,
   reinforceMemory,
   topMemories,
@@ -891,23 +900,24 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
 
   const omoAdmin = tool({
     description:
-      "管理网关。model 查看/热分配子代理模型；goal 设看清目标；status 给出预算+上下文+统计+MCP 一览；checkpoint 落盘；handoff 输出交接摘要；mcp 管理 MCP 目录（show/sync/enable/disable）；memory 记忆（op=add/list/edit）；compress 压缩回溯（op=add/list/decompress）；pa 会话删除/改写的授权队列（op=request/list/approve/deny/execute，高价值未明归属会话删前必须带说明）。",
+      "管理网关。model 查看/热分配子代理模型；goal 设看清目标；status 给出预算+上下文+统计+MCP 一览；checkpoint 落盘；handoff 输出交接摘要；mcp 管理 MCP 目录（show/sync/enable/disable）；memory 记忆（op=add/list/edit）；compress 压缩回溯与 token 折叠（op=add/list/decompress/fold/unfold/budget/redact/restore/tool-fold/tool-expand，其中 fold 无损折表格/接口返回、redact 本地密钥打码、tool-fold 分块大工具输出）；pa 会话删除/改写的授权队列（op=request/list/approve/deny/execute，高价值未明归属会话删前必须带说明）。",
     args: {
       action: tool.schema.enum(ADMIN_ACTIONS),
-      target: tool.schema.string().optional().describe("model set 的目标：agent:<id> / category:<id> / default；memory 的记忆 id；mcp 的服务器 id；slop_check 的扫描目录"),
+      target: tool.schema.string().optional().describe("model set 的目标：agent:<id> / category:<id> / default；memory 的记忆 id；mcp 的服务器 id；slop_check 的扫描目录；decompress 块 id；tool-expand 锚点 @bN"),
       model: tool.schema.string().optional().describe("model set 的模型 provider/model；传空串表示清除该层"),
-      text: tool.schema.string().optional().describe("goal_set 的目标文本；memory_add 的记忆正文；compress_add 的摘要"),
+      text: tool.schema.string().optional().describe("goal_set 的目标文本；memory_add 的记忆正文；compress_add 的摘要；compress fold/unfold/redact/restore/tool-fold 的输入（fold 为 JSON 数组、unfold 为折叠表 JSON）"),
       kind: tool.schema.enum(["fact", "antipattern", "snippet"]).optional().describe("memory_add 的条目类型；memory_list 的过滤"),
       op: tool.schema
-        .enum(["show", "set", "clear", "reinforce", "forget", "add", "list", "sync", "enable", "disable", "approve", "deny", "decompress", "request", "execute"])
+        .enum(["show", "set", "clear", "reinforce", "forget", "add", "list", "sync", "enable", "disable", "approve", "deny", "decompress", "request", "execute", "fold", "unfold", "budget", "redact", "restore", "tool-fold", "tool-expand"])
         .optional()
-        .describe("model：show/set；goal：set/show/clear（缺省 show）；memory：add/list/reinforce/forget；mcp：show/sync/enable/disable；compress：add/list/decompress（缺省 list）；pa：request/list/approve/deny"),
+        .describe("model：show/set；goal：set/show/clear（缺省 show）；memory：add/list/reinforce/forget；mcp：show/sync/enable/disable；compress：add/list/decompress/fold/unfold/budget/redact/restore/tool-fold/tool-expand（缺省 list）；pa：request/list/approve/deny"),
       apply: tool.schema.boolean().optional().describe("dreams_distill：true 时把候选直接落库，否则只列候选"),
       taskText: tool.schema.string().optional().describe("measure 时用来重选技能的文本"),
       from: tool.schema.string().optional().describe("compress_add：被压缩区间起点消息 id"),
       to: tool.schema.string().optional().describe("compress_add：被压缩区间终点消息 id"),
       sources: tool.schema.record(tool.schema.string(), tool.schema.string()).optional().describe("compress_add：消息 id → 原文，供 KEEP 展开"),
-      savedTokens: tool.schema.number().optional().describe("compress_add：估算节省的 token"),
+      savedTokens: tool.schema.number().optional().describe("compress_add：估算节省的 token；tool-fold：分块字符上限；budget：待判定 token 数"),
+      cap: tool.schema.number().optional().describe("compress budget：token 预算帽"),
       messageId: tool.schema.string().optional().describe("decompress：要回溯的原文消息 id"),
       sessionId: tool.schema.string().optional().describe("pa：要删除/改写的目标会话 id"),
       operation: tool.schema.enum(["delete", "write"]).optional().describe("pa：delete=删会话 / write=改写固有会话"),
@@ -1124,7 +1134,71 @@ export function buildTools(state: HostState): Record<string, ReturnType<typeof t
             }
             return block.summary
           }
-          return `未知 compress op=${op}（可用 add/list/decompress）`
+          // ── token fold：结构化无损折叠（本地、零依赖、零网络）──
+          if (op === "fold") {
+            // args.text 是 JSON 数组字符串（记录数组）
+            let records: Record<string, unknown>[]
+            try {
+              const parsed: unknown = JSON.parse(args.text ?? "[]")
+              if (!Array.isArray(parsed)) return "compress op=fold 需要 text 为 JSON 数组"
+              records = parsed as Record<string, unknown>[]
+            } catch {
+              return "compress op=fold 的 text 不是合法 JSON 数组"
+            }
+            const folded = foldRecords(records)
+            const sv = foldSavings(records, folded)
+            return JSON.stringify({ folded, savings: sv }, null, 2)
+          }
+          if (op === "unfold") {
+            let folded: Parameters<typeof unfoldRecords>[0]
+            try {
+              folded = JSON.parse(args.text ?? "{}") as typeof folded
+            } catch {
+              return "compress op=unfold 的 text 不是合法 JSON"
+            }
+            try {
+              return JSON.stringify(unfoldRecords(folded))
+            } catch (err) {
+              return `还原失败（折叠表损坏？）：${err instanceof Error ? err.message : String(err)}`
+            }
+          }
+          if (op === "budget") {
+            return checkFoldBudget(
+              Math.max(0, Number(args.savedTokens ?? 0)),
+              Math.max(0, Number(args.cap ?? 0)),
+            ).receipt
+          }
+          if (op === "redact") {
+            const r = redactSecrets(args.text ?? "")
+            return JSON.stringify(r, null, 2)
+          }
+          if (op === "restore") {
+            let vault: Record<string, string>
+            try {
+              vault = JSON.parse(args.sources ? JSON.stringify(args.sources) : "{}") as Record<string, string>
+            } catch {
+              vault = {}
+            }
+            return restoreSecrets(args.text ?? "", vault)
+          }
+          // ── DCP 工具返回分块（编号锚点，按需展开）──
+          if (op === "tool-fold") {
+            const toolId = args.from ?? "tool"
+            const text = args.text ?? ""
+            const r = foldToolResult(state.compress, {
+              toolId,
+              text,
+              ...(args.savedTokens !== undefined ? { maxChars: Math.max(1, Number(args.savedTokens)) } : {}),
+            })
+            state.saveCompress(r.store)
+            return `工具返回已分块为 ${r.anchors.length} 段：${renderToolResultRef(r.anchors)}`
+          }
+          if (op === "tool-expand") {
+            const anchor = args.target ?? ""
+            const text = expandAnchor(state.compress, anchor)
+            return text === undefined ? `锚点 ${anchor} 无对应原文` : text
+          }
+          return `未知 compress op=${op}（可用 add/list/decompress/fold/unfold/budget/redact/restore/tool-fold/tool-expand）`
         }
         case "pa": {
           return await handlePa(state, args)

@@ -226,6 +226,48 @@ describe("createHostCore", () => {
     expect(text).toMatch(/## 注入预算\n- \d+\/8192 tok（pass|truncated|fail）/)
   })
 
+  test("omo_admin compress 新 op：fold/unfold 无损往返、redact/restore、budget、tool-fold/expand 端到端", async () => {
+    const hooks = await createHostCore(
+      { directory: dir, client: fakeClient() },
+      { skillRoots: [skillsRoot], stateDir },
+    )
+    const admin = hooks.tool!["omo_admin"]!
+    const txt = (r: unknown): string => typeof r === "string" ? r : (r as { output: string }).output
+    const call = async (op: string, extra: Record<string, unknown> = {}) =>
+      txt(await admin.execute({ action: "compress", op, ...extra }, toolCtx()))
+
+    // fold → unfold 无损往返（高重复记录）
+    const records = Array.from({ length: 20 }, () => ({ city: "上海", role: "engineer", active: true }))
+    const folded = await call("fold", { text: JSON.stringify(records) })
+    const parsed = JSON.parse(folded) as { folded: unknown; savings: { savedPct: number } }
+    expect(parsed.savings.savedPct).toBeGreaterThan(50)
+    const restored = await call("unfold", { text: JSON.stringify(parsed.folded) })
+    expect(JSON.parse(restored)).toEqual(records.map((r) => ({
+      city: r.city, role: r.role, active: String(r.active),
+    })))
+
+    // redact → restore 本地打码往返
+    const redacted = JSON.parse(await call("redact", { text: "key=sk-abcdefghijklmnopqrstuv" })) as {
+      masked: string; vault: Record<string, string>
+    }
+    expect(redacted.masked).toContain("SECRET_")
+    expect(await call("restore", { text: redacted.masked, sources: redacted.vault }))
+      .toBe("key=sk-abcdefghijklmnopqrstuv")
+
+    // budget 放行/拒收
+    expect(await call("budget", { savedTokens: 100, cap: 200 })).toContain("PASS")
+    expect(await call("budget", { savedTokens: 300, cap: 200 })).toContain("REJECT")
+
+    // tool-fold → tool-expand 锚点往返
+    const big = "行一内容\n行二内容\n行三内容\n行四内容\n行五内容"
+    const folded2 = await call("tool-fold", { from: "call_1", text: big, savedTokens: 6 })
+    expect(folded2).toContain("@b")
+    const anchor = folded2.match(/@b\d+/)?.[0] ?? ""
+    expect(anchor).not.toBe("")
+    const expanded = await call("tool-expand", { target: anchor })
+    expect(expanded).toContain("行一内容")
+  })
+
   test("PA 删除硬边界：未批准不可删；批准后可执行；高价值未明归属无说明被拒", async () => {
     const deleted: string[] = []
     const client = {
