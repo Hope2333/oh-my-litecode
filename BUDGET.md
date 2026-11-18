@@ -19,7 +19,7 @@
 | 适配层行数（OC） | 300 | host+index 295（全目录含 client/tools/web 共 1804 行） | 300 只约束「入口+宿主装配」，业务逻辑在 client/tools/web 三个职责文件 |
 | 适配层行数（OC2） | 300 | V2 理论兼容插件（host+index+dialect+v2-types+client-v2+bridge ≈ 596 行；含注释/类型，非业务逻辑） | 2026-11-18 按官方 V1→V2 文档移植：`Plugin.define({id,setup})`+`server()` 双形态，7 hook+6 tool 经 bridge 注册到 V2 domain，业务逻辑仍只在 OC1 `createHostCore`。**未真机验证**（@opencode/plugin 2.x 装不上）；内核零改动 |
 | 内核纯模块（无副作用） | 不设上限 | 新增 `eigenflux/hint.ts`（+`hint.test.ts`） | 2026-11-17 记账：EigenFlux 主动提示的纯字符串判定 + 测试。零 hook / 零工具 / 零 action 槽位 / 零运行时依赖 / 零常驻 MCP；只在命中任务文本时于预算外追加区出一行，空闲注入 0 tok（实测 budget 3247，未增）。不占任何受控预算类别，按 A10 书面记账 |
-| 内置 MCP def + 证据提示（context7） | 不设上限 | 新增 `mcp/builtins.ts` + `mcp/context7-hint.ts`（+ 各自 `.test.ts`） | 2026-11-18 记账：复刻原版 OMO 的 Context7 为 OML 内置 def（merge 进 `hostMcpDefs()`，宿主 opencode.json 不登记），默认禁用 / needsReview，API key 占位串清洗；纯 hint 函数命中才出、预算外追加区，**prompt 只做证据分级**。零新 tool / 零新 action 槽位 / 零运行时依赖 / 零常驻 MCP（未启用）；空闲注入 0 tok。不占任何受控预算类别，按 A10 书面记账 |
+| 内置 MCP def + 证据提示（context7） | 不设上限 | 新增 `mcp/builtins.ts` + `mcp/context7-hint.ts`（+ 各自 `.test.ts`） | 2026-11-18 记账：复刻原版 OMO 的 Context7 为 OML 内置 def（merge 进 `hostMcpDefs()`，宿主 opencode.json 不登记），默认禁用 / needsReview，API key 占位串清洗；纯 hint 函数命中才出、预算外追加区，**prompt 只做证据分级**。零新 tool / 零新 action 槽位 / 零运行时依赖 / 零常驻 MCP（未启用）；空闲注入 0 tok。不占任何受控预算类别，按 A10 书面记账。2026-11-18 真机验证：POST https://mcp.context7.com/mcp 握手成功（serverInfo Context7 v4.7.3，protocol 2024-11-05），tools/list 返回 resolve-library-id + query-docs；无需 key、无需代理（直连 http=405 为 GET 预期，POST 正常） |
 
 ## 当前实测（2026-11-13）
 
