@@ -90,8 +90,9 @@ function lastAssistantFromMessages(list: unknown): string | undefined {
     const obj = entry as Record<string, unknown>
     const info = obj["info"]
     const infoObj = info !== null && typeof info === "object" ? (info as Record<string, unknown>) : {}
-    if (infoObj["role"] !== "assistant") continue
-    const t = partsText(obj["parts"]).text
+    // Windows 线真机：2.x 消息可能用顶层 type:"assistant" 而非 info.role；正文可能在 content 而非 parts。
+    if (infoObj["role"] !== "assistant" && obj["type"] !== "assistant") continue
+    const t = partsText(obj["parts"] ?? obj["content"]).text
     if (t !== "") return t
   }
   return ""
@@ -114,8 +115,10 @@ function readAssistantText(res: unknown): string | undefined {
   const message = body["message"]
   const messageObj = message !== null && typeof message === "object" ? (message as Record<string, unknown>) : {}
   for (const src of [infoObj, messageObj]) {
-    if (Array.isArray(src["parts"])) {
-      const t = partsText(src["parts"]).text
+    // Windows 线真机：正文可能在 content 而非 parts。
+    const parts = src["parts"] ?? src["content"]
+    if (Array.isArray(parts)) {
+      const t = partsText(parts).text
       if (t !== "") return t
     }
   }
@@ -200,8 +203,38 @@ export function clientFromContext(ctx: Oc2Context): TaskClient {
       })
       const err = errorText(res)
       if (err !== undefined) return { text: "", error: err }
-      const got = readPrompt(res)
-      if (got === undefined) throw sig("prompt 的返回形状（未找到 parts）")
+      let got = readPrompt(res)
+      // Windows 线真机观察：2.x session.prompt 返回体可能不含最终 assistant 文本，
+      // 答复要等生成完成后从 session.context 读。兜底：wait 等待 → 轮询 context（6×250ms）。
+      // 两个能力都可选：缺失则跳过兜底，最终仍取不到才 informative throw（不伪装成功）。
+      // 触发兜底：parts 缺失（got undefined）或 parts 为空（got.text===""）——两种都表示「答复尚未随返回体给出」。
+      if ((got === undefined || got.text === "") && typeof session.context === "function") {
+        if (typeof session.wait === "function") {
+          try {
+            await session.wait({ sessionID: sessionId })
+          } catch (waitErr) {
+            // wait 失败不致命：context 轮询仍可能拿到答复。如实记录，不用空 catch 吞掉。
+            console.warn(`[omc2] session.wait 失败，继续轮询 context: ${waitErr instanceof Error ? waitErr.message : String(waitErr)}`)
+          }
+        }
+        let payload: unknown
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          payload = await session.context({ sessionID: sessionId })
+          const probe = dataOf(payload)
+          const messages = Array.isArray(probe) ? probe : bodyOf(payload)["messages"]
+          if (Array.isArray(messages) && lastAssistantFromMessages(messages)) break
+          await new Promise((resolve) => setTimeout(resolve, 250))
+        }
+        const rawPayload = dataOf(payload)
+        const messages = Array.isArray(rawPayload) ? rawPayload : bodyOf(payload)["messages"]
+        if (Array.isArray(messages)) {
+          const answer = lastAssistantFromMessages(messages)
+          if (answer !== undefined && answer !== "") {
+            got = { text: answer, toolUses: undefined, tokens: undefined }
+          }
+        }
+      }
+      if (got === undefined) throw sig("prompt 的返回形状（未找到 parts，且 context 兜底未取到答复）")
       return {
         text: got.text,
         ...(got.tokens === undefined ? {} : { tokens: got.tokens }),

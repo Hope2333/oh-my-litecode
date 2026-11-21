@@ -168,4 +168,66 @@ describe("clientFromContext（OC2 真机 2.3.0 ctx.session 映射）", () => {
     const client = clientFromContext({ location: { directory: "/tmp" } } as unknown as Oc2Context)
     await expect(client.listSessions()).rejects.toThrow(/ctx\.session\..*不可用/)
   })
+
+  // Windows 线真机修正：2.x 消息可能用顶层 type:"assistant" + content 而非 info.role + parts。
+  it("assistant 识别放宽：顶层 type:'assistant' + content 正文（Windows 真机修正）", async () => {
+    const session = fakeSession({
+      calls: [],
+      overrides: {
+        get: () => Promise.resolve([
+          { type: "user", content: [{ type: "text", text: "q" }] },
+          { type: "assistant", content: [{ type: "text", text: "windows answer" }] },
+        ]),
+      },
+    })
+    const text = await clientFromContext(ctxWith(session)).lastAssistantText({ sessionId: "s1" })
+    expect(text).toBe("windows answer")
+  })
+
+  // Windows 线真机修正：prompt 返回不含答复时，wait → 轮询 context 取最终答复。
+  it("prompt 无答复时经 wait+context 兜底取答复（Windows 真机修正）", async () => {
+    const calls: Call[] = []
+    let contextAttempts = 0
+    const session = fakeSession({
+      calls,
+      overrides: {
+        prompt: () => Promise.resolve({ parts: [] }), // 有 parts 但无文本 → readPrompt 得到空 text
+        wait: (input: Record<string, unknown>) => {
+          calls.push({ name: "wait", input })
+          return Promise.resolve({})
+        },
+        context: (input: Record<string, unknown>) => {
+          calls.push({ name: "context", input })
+          contextAttempts += 1
+          return Promise.resolve({
+            data: [
+              { info: { role: "user" }, parts: [{ type: "text", text: "q" }] },
+              { info: { role: "assistant" }, parts: [{ type: "text", text: "deferred answer" }] },
+            ],
+          })
+        },
+      },
+    })
+    const result = await clientFromContext(ctxWith(session)).promptSession({ sessionId: "s1", text: "ping" })
+    expect(result.text).toBe("deferred answer")
+    expect(contextAttempts).toBe(1) // 第一次轮询即命中，无需等到 6 次
+    expect(calls.some((c) => c.name === "wait")).toBe(true)
+    expect(calls.some((c) => c.name === "context")).toBe(true)
+  })
+
+  // 兜底路径中 wait 失败不致命：仍继续轮询 context（且不留空 catch）。
+  it("prompt 兜底：wait 抛错仍继续 context 轮询拿到答复", async () => {
+    const session = fakeSession({
+      calls: [],
+      overrides: {
+        prompt: () => Promise.resolve({ parts: [] }),
+        wait: () => Promise.reject(new Error("wait unavailable")),
+        context: () => Promise.resolve([
+          { type: "assistant", content: [{ type: "text", text: "answer despite wait error" }] },
+        ]),
+      },
+    })
+    const result = await clientFromContext(ctxWith(session)).promptSession({ sessionId: "s1", text: "ping" })
+    expect(result.text).toBe("answer despite wait error")
+  })
 })

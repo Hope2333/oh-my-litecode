@@ -123,6 +123,13 @@ export interface V2SessionDomain {
   list?(input: Record<string, unknown>): Promise<unknown>
   remove?(input: Record<string, unknown>): Promise<unknown>
   interrupt?(input: Record<string, unknown>): Promise<unknown>
+  /**
+   * Windows 线真机观察：2.x `session.prompt` 的返回体可能不含最终 assistant 文本，
+   * 答复要等异步生成后从 `session.context` 读；`session.wait` 用于等待生成完成。
+   * 两者均为可选能力，缺失时 client-v2.ts 的兜底路径直接跳过后抛 informative throw。
+   */
+  context?(input: Record<string, unknown>): Promise<unknown>
+  wait?(input: Record<string, unknown>): Promise<unknown>
 }
 export interface V2PermissionDomain {
   hook(
