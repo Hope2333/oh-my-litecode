@@ -216,6 +216,44 @@ async function gateStructure(): Promise<void> {
   )
 }
 
+// ---------------------------------------------------------------- 4b. 纪律源码守卫
+/**
+ * 纪律不可被静默删除：主动检查点与压缩纪律散落在 host.ts / context/module.ts 里，
+ * 行为测试虽在，但 Windows 线曾连同代码与测试一起删（误判上游 BC/ACP 已覆盖上下文），
+ * 靠人工 diff 才发现。这里在源码层钉死哨兵——删掉任一处，check 立即失败。
+ * 抗的是「名头冒充真理」：上游声称在管上下文 ≠ 本地保护可以删。
+ */
+function gateDiscipline(): void {
+  const sentinels: Array<{ file: string; label: string; needles: string[] }> = [
+    {
+      file: "OC/omo/src/host.ts",
+      label: "主动检查点（85%）",
+      needles: ["lastAutoCheckpoint", "pct >= 85", "600_000", "<auto-checkpoint", "state.checkpoint()"],
+    },
+    {
+      file: "OC/omo/src/host.ts",
+      label: "压缩钩子",
+      needles: ["experimental.session.compacting", "COMPACTION_RULES", "<omo-compaction>"],
+    },
+    {
+      file: "packages/core/src/context/module.ts",
+      label: "上下文权威铁律",
+      needles: ["上下文权威", "不替代、不取消、不删减", "上游"],
+    },
+  ]
+  const missing: string[] = []
+  for (const s of sentinels) {
+    const p = join(ROOT, s.file)
+    const txt = existsSync(p) ? readFileSync(p, "utf8") : ""
+    for (const needle of s.needles) {
+      if (!txt.includes(needle)) missing.push(`${s.file} 缺「${needle}」(${s.label})`)
+    }
+  }
+  record("discipline", missing.length === 0,
+    missing.length === 0 ? "主动检查点+压缩钩子+上下文权威铁律源码哨兵齐全"
+      : `纪律哨兵缺失：${missing.join("；")}`)
+}
+
 // ---------------------------------------------------------------- 5. 零增长
 /** 零增长：与 manifest 基线比，而不是与未提交的 git 索引比。
  * 后者在「仓库零提交」时 git 直接 exit 128，而旧实现只看以 A 开头的行 →
@@ -266,6 +304,7 @@ await gateBudget()
 await gateHost()
 await gateSurface()
 await gateStructure()
+await gateDiscipline()
 await gateZeroGrowth()
 
 const failed = results.filter((r) => !r.ok)

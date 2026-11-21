@@ -22,6 +22,8 @@
 
 不重复造：OML **不做**流式压缩。宿主引擎负责「不爆窗口」，OML 账本负责「可交接」。
 
+**权威关系**：上游 provider/harness 也会注入 ACP 压缩提示（"Compression Philosophy"），它只负责省 token，**不替代 OML 自带检查点**。曾发生 Windows 线误判"上游在管上下文"而删掉 85% 主动检查点的违纪删除。三层 ACP 的权威划分、根因与三重防护见 `context-authority.md`。
+
 ## 接入点
 
 - `omo doctor`：`detectOpenCodeVersion()`（`opencode --version`）→ `pickAcp` → 打印

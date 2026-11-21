@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-21T00:50:18.265Z",
+  "generatedAt": "2026-11-21T01:38:23.495Z",
   "files": {
     ".gitignore": "0b25d6d29fe015c9",
     ".opencode/.gitignore": "663a068e76d264d0",
@@ -7,7 +7,7 @@
     ".opencode/package-lock.json": "c6589bfd6b7f8ca7",
     ".opencode/package.json": "c87a5df27ef88aff",
     ".opencode/tui.json": "bd6bc9722b57a357",
-    "BUDGET.md": "739da9b767735af3",
+    "BUDGET.md": "e390f8dfa0a84622",
     "MODULES.md": "be5b6e2cb4f8c25c",
     "OC/omo/README.md": "553c262641510307",
     "OC/omo/package.json": "adfe1e993ced706a",
@@ -76,7 +76,8 @@
     "docs/bench/task-ab-omo.json": "d2823cf4a4420ab8",
     "docs/bench/task-ab-repeat.md": "5611b75bfd4ad579",
     "docs/bench/task-ab.md": "7331fee783e67122",
-    "docs/design/acp-routing.md": "31fb1a878ca089f7",
+    "docs/design/acp-routing.md": "25727312f58a5a09",
+    "docs/design/context-authority.md": "fa08a29fb8a6b83e",
     "docs/design/deepseek-super-agent.md": "95cda001f36b82fc",
     "docs/design/federation.md": "71ed1d920e65476b",
     "docs/design/mcp-dynamic.md": "7ee32a95f22d42aa",
@@ -130,7 +131,7 @@
     "packages/core/src/config/index.test.ts": "ec663e208d7e977a",
     "packages/core/src/config/index.ts": "6d7d1d13ef049e73",
     "packages/core/src/config/schema.ts": "77b13059610f3a8f",
-    "packages/core/src/context/module.ts": "1135ce16deaab047",
+    "packages/core/src/context/module.ts": "6d58190c19ddcb5e",
     "packages/core/src/contract.ts": "bd6592eb699a859a",
     "packages/core/src/eigenflux/hint.test.ts": "55d81c5647a95562",
     "packages/core/src/eigenflux/hint.ts": "9f14b80fbc2672dd",
@@ -188,7 +189,7 @@
     "packages/tui-plugins/visual-cache/LICENSE": "6c252d7eda463e6e",
     "packages/tui-plugins/visual-cache/bundle/tui.js": "6965426050d5e8c9",
     "packages/tui-plugins/visual-cache/meta.json": "9a763334b0e7db08",
-    "scripts/check.ts": "bbfdfcac294ae652",
+    "scripts/check.ts": "6f763a37fe1ef66e",
     "scripts/manifest.ts": "8ae4aac91acfc4ad",
     "tsconfig.json": "cd2b2a22e5223d3f"
   }
